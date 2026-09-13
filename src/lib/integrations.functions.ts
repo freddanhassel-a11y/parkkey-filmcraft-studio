@@ -40,8 +40,9 @@ export const verifyIntegration = createServerFn({ method: "POST" })
         notes = capability.note;
       } else if (capability.publishCapable && !runtime.configured) {
         status = "MANUAL CHECK";
-        notes =
-          "CoreOS har verifierat LinkedIn-kapaciteten, men produktion saknar LINKEDIN_ACCESS_TOKEN. LinkedIns OAuth-consent måste slutföras och token lagras server-side innan publicering kan aktiveras.";
+        notes = runtime.oauthAppConfigured
+          ? "CoreOS har verifierat LinkedIn-kapaciteten och OAuth-appens serverinställningar finns, men produktion saknar LINKEDIN_ACCESS_TOKEN. Slutför LinkedIns OAuth-consent för rätt konto och lagra token server-side innan publicering kan aktiveras."
+          : `CoreOS har verifierat LinkedIn-kapaciteten, men OAuth-runtime är inte färdig. ${runtime.note}`;
       } else {
         status = capability.state;
         notes = `${capability.note} ${runtime.note}`;
