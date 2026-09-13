@@ -9,7 +9,7 @@ import { logAudit } from "./audit";
  * webbläsaren kan aldrig läsa CoreOS-tabeller direkt.
  */
 
-export type CoreosEntityType = "municipality" | "operator" | "contact" | "pilot";
+export type CoreosEntityType = "municipality" | "operator" | "contact" | "pilot" | "opportunity";
 
 export type CoreosValue = string | number | boolean | null | string[];
 export type CoreosRecord = Record<string, CoreosValue>;
@@ -102,6 +102,30 @@ export const searchCoreos = createServerFn({ method: "POST" })
       });
     }
 
+    const opportunities = await context.coreos
+      .from("parky_opportunity_submissions")
+      .select(
+        "id,contact_organisation,contact_name,readiness_state,recommended_use_case,primary_outcome,pilot_timing,created_at",
+      )
+      .or(
+        `contact_organisation.ilike.${like},contact_name.ilike.${like},recommended_use_case.ilike.${like},primary_outcome.ilike.${like}`,
+      )
+      .order("created_at", { ascending: false })
+      .limit(8);
+    if (opportunities.error) denied.push("möjligheter");
+    for (const o of opportunities.data ?? []) {
+      const organisation = (o.contact_organisation as string | null)?.trim();
+      const contact = (o.contact_name as string | null)?.trim();
+      results.push({
+        type: "opportunity",
+        id: o.id as string,
+        label: organisation || contact || `Parky opportunity ${(o.id as string).slice(0, 8)}`,
+        sublabel:
+          (o.recommended_use_case as string | null) ?? (o.primary_outcome as string | null) ?? null,
+        status: (o.readiness_state as string | null) ?? null,
+      });
+    }
+
     return { results, denied };
   });
 
@@ -152,10 +176,20 @@ export const getCoreosContext = createServerFn({ method: "POST" })
           },
         ];
       }
-    } else {
+    } else if (data.type === "pilot") {
       const res = await context.coreos
         .from("pilot_cases")
         .select("id,name,municipality_name,mode")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (res.error) throw new Error(`CoreOS nekade läsning: ${res.error.message}`);
+      record = res.data as CoreosRecord | null;
+    } else {
+      const res = await context.coreos
+        .from("parky_opportunity_submissions")
+        .select(
+          "id,contact_organisation,contact_name,readiness_state,recommended_use_case,primary_outcome,pilot_timing,overall_score,created_at",
+        )
         .eq("id", data.id)
         .maybeSingle();
       if (res.error) throw new Error(`CoreOS nekade läsning: ${res.error.message}`);
