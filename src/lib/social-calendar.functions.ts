@@ -1,27 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 import { logAudit } from "./audit";
 import { cropPresetsFor } from "./social-engine";
 
 const SUPPORTED_FORMATS = new Set(["1:1", "4:5", "16:9", "9:16"]);
 
 async function linkedinSchedulingState(
-  db: Parameters<typeof logAudit>[0],
+  db: SupabaseClient<Database>,
 ): Promise<"SCHEDULED" | "SCHEDULED — CONNECTION REQUIRED"> {
-  const client = db as {
-    from: (table: "integration_connections") => {
-      select: (columns: string) => {
-        eq: (column: string, value: string) => {
-          maybeSingle: () => Promise<{
-            data: { status: string; verified_at: string | null } | null;
-            error: { message: string } | null;
-          }>;
-        };
-      };
-    };
-  };
-  const { data, error } = await client
+  const { data, error } = await db
     .from("integration_connections")
     .select("status,verified_at")
     .eq("provider", "linkedin")
@@ -131,11 +121,17 @@ export const duplicateSocialPostForFormat = createServerFn({ method: "POST" })
       if (linkError) throw new Error(linkError.message);
     }
 
-    await logAudit(context.db, context, "social.create", { type: "social_post", id: row.id }, {
-      action: "duplicate_format",
-      source_post_id: source.id,
-      aspect_ratio: data.aspect_ratio,
-    });
+    await logAudit(
+      context.db,
+      context,
+      "social.create",
+      { type: "social_post", id: row.id },
+      {
+        action: "duplicate_format",
+        source_post_id: source.id,
+        aspect_ratio: data.aspect_ratio,
+      },
+    );
 
     return row;
   });
