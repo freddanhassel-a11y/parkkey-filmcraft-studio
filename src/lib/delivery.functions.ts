@@ -22,82 +22,63 @@ async function assertReferencedMaterialApproved(
     social_post_id?: string | null;
   },
 ) {
-  const checks: Promise<void>[] = [];
   let referenceCount = 0;
 
   if (refs.film_project_id) {
     referenceCount += 1;
-    checks.push(
-      db
-        .from("film_projects")
-        .select("id,status")
-        .eq("id", refs.film_project_id)
-        .maybeSingle()
-        .then(({ data, error }) => {
-          if (error) throw new Error(error.message);
-          if (!data || !APPROVED_DELIVERY_STATES.has(data.status)) {
-            throw new Error("Filmprojektet är inte APPROVED/EXPORTED på serversidan.");
-          }
-        }),
-    );
+    const { data, error } = await db
+      .from("film_projects")
+      .select("id,status")
+      .eq("id", refs.film_project_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data || !APPROVED_DELIVERY_STATES.has(data.status)) {
+      throw new Error("Filmprojektet är inte APPROVED/EXPORTED på serversidan.");
+    }
   }
 
   if (refs.film_version_id) {
     referenceCount += 1;
-    checks.push(
-      db
-        .from("film_versions")
-        .select("id,status")
-        .eq("id", refs.film_version_id)
-        .maybeSingle()
-        .then(({ data, error }) => {
-          if (error) throw new Error(error.message);
-          if (!data || !APPROVED_DELIVERY_STATES.has(data.status)) {
-            throw new Error("Filmversionen är inte APPROVED/EXPORTED på serversidan.");
-          }
-        }),
-    );
+    const { data, error } = await db
+      .from("film_versions")
+      .select("id,status")
+      .eq("id", refs.film_version_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data || !APPROVED_DELIVERY_STATES.has(data.status)) {
+      throw new Error("Filmversionen är inte APPROVED/EXPORTED på serversidan.");
+    }
   }
 
   if (refs.media_asset_id) {
     referenceCount += 1;
-    checks.push(
-      db
-        .from("media_assets")
-        .select("id,approval_status,archived_at")
-        .eq("id", refs.media_asset_id)
-        .maybeSingle()
-        .then(({ data, error }) => {
-          if (error) throw new Error(error.message);
-          if (!data || data.archived_at || !APPROVED_DELIVERY_STATES.has(data.approval_status)) {
-            throw new Error("Mediematerialet är inte APPROVED/EXPORTED och aktivt på serversidan.");
-          }
-        }),
-    );
+    const { data, error } = await db
+      .from("media_assets")
+      .select("id,approval_status,archived_at")
+      .eq("id", refs.media_asset_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data || data.archived_at || !APPROVED_DELIVERY_STATES.has(data.approval_status)) {
+      throw new Error("Mediematerialet är inte APPROVED/EXPORTED och aktivt på serversidan.");
+    }
   }
 
   if (refs.social_post_id) {
     referenceCount += 1;
-    checks.push(
-      db
-        .from("social_posts")
-        .select("id,status")
-        .eq("id", refs.social_post_id)
-        .maybeSingle()
-        .then(({ data, error }) => {
-          if (error) throw new Error(error.message);
-          if (!data || !APPROVED_DELIVERY_STATES.has(data.status)) {
-            throw new Error("Det sociala materialet är inte APPROVED/EXPORTED på serversidan.");
-          }
-        }),
-    );
+    const { data, error } = await db
+      .from("social_posts")
+      .select("id,status")
+      .eq("id", refs.social_post_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data || !APPROVED_DELIVERY_STATES.has(data.status)) {
+      throw new Error("Det sociala materialet är inte APPROVED/EXPORTED på serversidan.");
+    }
   }
 
   if (referenceCount === 0) {
     throw new Error("Leveranspaketet måste innehålla minst ett godkänt materialobjekt.");
   }
-
-  await Promise.all(checks);
 }
 
 export const listDeliveryPackages = createServerFn({ method: "GET" })
