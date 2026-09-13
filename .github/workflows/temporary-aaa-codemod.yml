@@ -1,0 +1,42 @@
+name: Temporary AAA Type Codemod
+
+on:
+  push:
+    branches: [feat/linkedin-direct-api-aaa]
+    paths:
+      - '.github/workflows/temporary-aaa-codemod.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/linkedin-direct-api-aaa
+      - name: Type the media tag callback
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/routes/_authenticated/studio/media.tsx')
+          text = path.read_text()
+          old = 'a.tags.some((t) => t.toLowerCase().includes(term))'
+          new = '(a.tags as string[]).some((t: string) => t.toLowerCase().includes(term))'
+          if old not in text:
+              raise SystemExit('Expected media tag expression not found; refusing broad edit')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit exact codemod
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/routes/_authenticated/studio/media.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(types): type media tag callback explicitly'
+          git push origin HEAD:feat/linkedin-direct-api-aaa
