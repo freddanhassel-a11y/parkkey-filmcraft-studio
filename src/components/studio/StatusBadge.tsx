@@ -7,6 +7,16 @@ const MAP: Record<string, { icon: typeof CheckCircle2; tone: string; help: strin
     tone: "text-status-neutral border-status-neutral/40",
     help: "Utkast",
   },
+  "INTERNAL REVIEW": {
+    icon: Clock,
+    tone: "text-status-unknown border-status-unknown/40",
+    help: "Intern granskning",
+  },
+  REVIEW: {
+    icon: Clock,
+    tone: "text-status-unknown border-status-unknown/40",
+    help: "Intern granskning (legacy status)",
+  },
   "PROMPT READY": {
     icon: FileText,
     tone: "text-status-unknown border-status-unknown/40",
@@ -27,6 +37,26 @@ const MAP: Record<string, { icon: typeof CheckCircle2; tone: string; help: strin
     tone: "text-status-verified border-status-verified/50",
     help: "Godkänd",
   },
+  SCHEDULED: {
+    icon: Clock,
+    tone: "text-status-unknown border-status-unknown/40",
+    help: "Schemalagd",
+  },
+  "READY TO SEND": {
+    icon: Clock,
+    tone: "text-status-unknown border-status-unknown/40",
+    help: "Godkänd och klar att skicka",
+  },
+  PUBLISHED: {
+    icon: CheckCircle2,
+    tone: "text-status-verified border-status-verified/50",
+    help: "Publicerad efter verifierad providerrespons",
+  },
+  SENT: {
+    icon: CheckCircle2,
+    tone: "text-status-verified border-status-verified/50",
+    help: "Skickad efter verifierad leverans",
+  },
   EXPORTED: {
     icon: Upload,
     tone: "text-status-verified border-status-verified/60",
@@ -42,6 +72,26 @@ const MAP: Record<string, { icon: typeof CheckCircle2; tone: string; help: strin
     icon: CheckCircle2,
     tone: "text-status-verified border-status-verified/50",
     help: "Fil finns",
+  },
+  CONNECTED: {
+    icon: CheckCircle2,
+    tone: "text-status-verified border-status-verified/50",
+    help: "Verifierad anslutning",
+  },
+  "NOT CONNECTED": {
+    icon: CircleSlash,
+    tone: "text-status-neutral border-status-neutral/40",
+    help: "Inte ansluten",
+  },
+  DEGRADED: {
+    icon: Clock,
+    tone: "text-status-warning border-status-warning/50",
+    help: "Delvis fungerande anslutning",
+  },
+  "MANUAL CHECK": {
+    icon: CircleDashed,
+    tone: "text-status-unknown border-status-unknown/40",
+    help: "Manuell verifiering krävs",
   },
   FAILED: {
     icon: CircleSlash,
