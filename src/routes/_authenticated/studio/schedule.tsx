@@ -199,7 +199,12 @@ function SchedulePage() {
 
         {view !== "list" ? (
           <div className="flex items-center gap-2" aria-label="Kalenderperiod">
-            <Button size="icon" variant="outline" onClick={() => movePeriod(-1)} aria-label="Föregående">
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => movePeriod(-1)}
+              aria-label="Föregående"
+            >
               <ChevronLeft aria-hidden="true" />
             </Button>
             <Button variant="ghost" onClick={() => setCursorDate(new Date())}>
@@ -397,9 +402,7 @@ function ScheduleActions({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() =>
-              void onCancel().catch(() => toast.error("Kunde inte avbryta schemat."))
-            }
+            onClick={() => void onCancel().catch(() => toast.error("Kunde inte avbryta schemat."))}
           >
             <X aria-hidden="true" />
             Avbryt
