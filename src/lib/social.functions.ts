@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
 import { logAudit } from "./audit";
+import { getLinkedInCapabilityFromCoreos } from "./linkedin-capability";
 import { buildSocialCreative, cropPresetsFor, type SocialBrief } from "./social-engine";
 
 export const listSocialPosts = createServerFn({ method: "GET" })
@@ -195,10 +196,11 @@ export const regenerateSocialCreative = createServerFn({ method: "POST" })
   });
 
 const FLOW: Record<string, string[]> = {
-  DRAFT: ["REVIEW"],
+  DRAFT: ["REVIEW", "INTERNAL REVIEW"],
   REVIEW: ["APPROVED", "DRAFT"],
-  APPROVED: ["REVIEW"],
-  FAILED: ["DRAFT", "REVIEW"],
+  "INTERNAL REVIEW": ["APPROVED", "DRAFT"],
+  APPROVED: ["REVIEW", "INTERNAL REVIEW"],
+  FAILED: ["DRAFT", "REVIEW", "INTERNAL REVIEW"],
 };
 
 export const setSocialPostStatus = createServerFn({ method: "POST" })
@@ -262,27 +264,10 @@ export const setSocialPostAssets = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-async function linkedinConnection(db: {
-  from: (t: "integration_connections") => {
-    select: (c: string) => {
-      eq: (
-        col: string,
-        val: string,
-      ) => { maybeSingle: () => Promise<{ data: { status: string } | null }> };
-    };
-  };
-}) {
-  const { data } = await db
-    .from("integration_connections")
-    .select("status")
-    .eq("provider", "linkedin")
-    .maybeSingle();
-  return data?.status === "CONNECTED";
-}
-
 /**
- * Schemaläggning. Utan verifierad LinkedIn-anslutning blir läget sanningsenligt
- * "SCHEDULED — CONNECTION REQUIRED" — aldrig "published".
+ * Schemaläggning använder CoreOS' verifierade integrationsmodell. Om konto,
+ * preflight, identitet, beviljade scopes eller publiceringssyfte inte kan
+ * styrkas blir läget sanningsenligt CONNECTION REQUIRED/MANUAL CHECK.
  */
 export const scheduleSocialPost = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
@@ -301,8 +286,10 @@ export const scheduleSocialPost = createServerFn({ method: "POST" })
     }
     const when = new Date(data.scheduled_at);
     if (Number.isNaN(when.getTime())) throw new Error("Ogiltig tidpunkt.");
+    if (when <= new Date()) throw new Error("Schematiden måste ligga i framtiden.");
 
-    const connected = await linkedinConnection(context.db as never);
+    const capability = await getLinkedInCapabilityFromCoreos(context.coreos);
+    const connected = capability.publishCapable;
     const status = connected ? "SCHEDULED" : "SCHEDULED — CONNECTION REQUIRED";
 
     const { data: row, error: sErr } = await context.db
@@ -329,9 +316,11 @@ export const scheduleSocialPost = createServerFn({ method: "POST" })
         post_id: data.id,
         scheduled_at: row.scheduled_at,
         status,
+        linkedin_capability: capability.state,
+        granted_scope_count: capability.grantedScopes.length,
       },
     );
-    return { schedule: row, connected, status };
+    return { schedule: row, connected, status, capability };
   });
 
 export const cancelSchedule = createServerFn({ method: "POST" })
@@ -357,32 +346,40 @@ export const cancelSchedule = createServerFn({ method: "POST" })
   });
 
 /**
- * Publiceringsförsök. Ingen fejkad publicering: utan verifierad anslutning
- * loggas försöket som blockerat och inlägget står kvar i kö.
+ * Publiceringsförsök. En verifierad CoreOS-kapacitet är nödvändig men inte
+ * tillräcklig: tills en verklig LinkedIn API-adapter returnerar ett post-ID/URL
+ * kan inget markeras som PUBLISHED.
  */
 export const attemptPublish = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
   .inputValidator((d: { post_id: string; schedule_id?: string | null }) => d)
   .handler(async ({ data, context }) => {
-    const connected = await linkedinConnection(context.db as never);
-    if (!connected) {
+    const capability = await getLinkedInCapabilityFromCoreos(context.coreos);
+    if (!capability.publishCapable) {
       await context.db.from("publish_attempts").insert({
         post_id: data.post_id,
         schedule_id: data.schedule_id ?? null,
         provider: "linkedin",
         status: "BLOCKED — CONNECTION REQUIRED",
-        error_message:
-          "LinkedIn-appen är inte ansluten. Publicering kräver verifierad OAuth-anslutning med w_member_social.",
+        error_message: `LinkedIn-publicering är inte verifierad i CoreOS. ${capability.note}`,
         attempted_by: context.userId,
       });
-      await logAudit(context.db, context, "social.publish.blocked", {
-        type: "social_post",
-        id: data.post_id,
-      });
+      await logAudit(
+        context.db,
+        context,
+        "social.publish.blocked",
+        { type: "social_post", id: data.post_id },
+        {
+          capability_state: capability.state,
+          purpose: capability.purpose,
+          granted_scope_count: capability.grantedScopes.length,
+        },
+      );
       return {
         published: false,
+        capability,
         message:
-          "Ingen verifierad LinkedIn-anslutning. Inlägget står kvar som SCHEDULED — CONNECTION REQUIRED och inget publicerades.",
+          "Ingen verifierad LinkedIn-publiceringskapacitet. Inlägget står kvar i kön och inget publicerades.",
       };
     }
 
@@ -392,17 +389,25 @@ export const attemptPublish = createServerFn({ method: "POST" })
       provider: "linkedin",
       status: "FAILED",
       error_message:
-        "Anslutningen är registrerad men publiceringsadaptern har inte verifierats mot LinkedIn API ännu.",
+        "CoreOS har verifierat LinkedIn-kapaciteten, men Film Studios publiceringsadapter har ännu inte ett verifierat LinkedIn API-svar med post-ID/URL.",
       attempted_by: context.userId,
     });
-    await logAudit(context.db, context, "social.publish.attempt", {
-      type: "social_post",
-      id: data.post_id,
-    });
+    await logAudit(
+      context.db,
+      context,
+      "social.publish.attempt",
+      { type: "social_post", id: data.post_id },
+      {
+        capability_state: capability.state,
+        purpose: capability.purpose,
+        granted_scopes: capability.grantedScopes,
+      },
+    );
     return {
       published: false,
+      capability,
       message:
-        "Anslutningen är registrerad men publiceringen är inte verifierad mot LinkedIn API. Inget publicerades.",
+        "LinkedIn-kapaciteten är verifierad i CoreOS, men inget verifierat publiceringssvar finns ännu. Inget markerades som PUBLISHED.",
     };
   });
 
