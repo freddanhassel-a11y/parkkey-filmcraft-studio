@@ -14,9 +14,9 @@ import {
   setSocialPostStatus,
   updateSocialPost,
 } from "@/lib/social.functions";
-import { listIntegrations } from "@/lib/integrations.functions";
+import { getLinkedInCapability } from "@/lib/linkedin-capability.functions";
 import { SectionHeading } from "@/components/studio/brand";
-import { TruthBadge } from "@/components/studio/StatusBadge";
+import { StatusBadge, TruthBadge } from "@/components/studio/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,7 +48,7 @@ export const Route = createFileRoute("/_authenticated/studio/linkedin")({
 function LinkedInPage() {
   const qc = useQueryClient();
   const fetchPosts = useServerFn(listSocialPosts);
-  const fetchIntegrations = useServerFn(listIntegrations);
+  const fetchCapability = useServerFn(getLinkedInCapability);
   const update = useServerFn(updateSocialPost);
   const setStatus = useServerFn(setSocialPostStatus);
   const setAssets = useServerFn(setSocialPostAssets);
@@ -60,10 +60,11 @@ function LinkedInPage() {
     queryKey: ["social"],
     queryFn: () => fetchPosts(),
   });
-  const integrations = useQuery({ queryKey: ["integrations"], queryFn: () => fetchIntegrations() });
-
-  const linkedin = (integrations.data?.connections ?? []).find((c) => c.provider === "linkedin");
-  const connected = linkedin?.status === "CONNECTED";
+  const capability = useQuery({
+    queryKey: ["linkedin-capability"],
+    queryFn: () => fetchCapability(),
+  });
+  const connected = capability.data?.publishCapable === true;
 
   const posts = useMemo(() => (data?.posts ?? []).filter((p) => p.network === "LinkedIn"), [data]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -82,7 +83,7 @@ function LinkedInPage() {
       <SectionHeading
         eyebrow="LinkedIn"
         title="LinkedIn Studio"
-        description="Skapa inlägg från filmmaterial eller från början, granska, godkänn, bifoga media och lägg i schemakö. Publicering sker aldrig utan verifierad anslutning."
+        description="Skapa inlägg från filmmaterial eller från början, granska, godkänn, bifoga media och lägg i schemakö. Publicering sker aldrig utan verifierad anslutning och verkligt API-svar."
       />
 
       <div
@@ -95,13 +96,45 @@ function LinkedInPage() {
           aria-hidden="true"
           className={`mt-0.5 size-4 ${connected ? "text-status-verified" : "text-status-unknown"}`}
         />
-        <p className="flex-1">
-          {connected
-            ? "LinkedIn-anslutningen är verifierad. Publiceringsadaptern körs serverside — inga nycklar finns i webbläsaren."
-            : "LinkedIn är inte anslutet. Schemaläggning fungerar som intern kö med status SCHEDULED — CONNECTION REQUIRED. Inget publiceras externt."}
-        </p>
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">LinkedIn capability</span>
+            <StatusBadge status={capability.data?.state ?? "MANUAL CHECK"} />
+          </div>
+          <p>
+            {capability.isLoading
+              ? "Verifierar LinkedIn mot CoreOS…"
+              : capability.isError
+                ? "LinkedIn-kapaciteten kunde inte verifieras. Ingen publicering antas vara tillgänglig."
+                : capability.data?.note}
+          </p>
+          {capability.data?.displayName ? (
+            <p className="text-xs text-muted-foreground">
+              {capability.data.displayName}
+              {capability.data.observedPrincipal ? ` · ${capability.data.observedPrincipal}` : ""}
+              {capability.data.purpose ? ` · syfte: ${capability.data.purpose}` : ""}
+            </p>
+          ) : null}
+          {(capability.data?.grantedScopes.length ?? 0) > 0 ? (
+            <p className="break-words text-xs text-muted-foreground">
+              Verifierade scopes i CoreOS: {capability.data?.grantedScopes.join(", ")}
+            </p>
+          ) : null}
+          {connected ? (
+            <p className="text-xs text-muted-foreground">
+              CoreOS har verifierat kontot och publiceringsavsedd kapacitet. Film Studio markerar
+              ändå aldrig något som PUBLISHED förrän publiceringsadaptern har ett verkligt
+              post-ID/URL från LinkedIn.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Schemaläggning fungerar som intern kö med status SCHEDULED — CONNECTION REQUIRED.
+              Inget publiceras externt.
+            </p>
+          )}
+        </div>
         <Button asChild variant="outline" size="sm">
-          <Link to="/studio/integrations">Anslut LinkedIn</Link>
+          <Link to="/studio/integrations">Integrationer</Link>
         </Button>
       </div>
 
@@ -149,9 +182,7 @@ function LinkedInPage() {
                   <h2 className="text-lg font-semibold">{selected.title}</h2>
                   <div className="flex items-center gap-2">
                     <TruthBadge label={selected.truth_label} />
-                    <span className="rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                      {selected.status}
-                    </span>
+                    <StatusBadge status={selected.status} />
                   </div>
                 </div>
 
@@ -274,17 +305,19 @@ function LinkedInPage() {
                     <Button
                       variant="outline"
                       onClick={() =>
-                        void setStatus({ data: { id: selected.id, status: "REVIEW" } }).then(
+                        void setStatus({
+                          data: { id: selected.id, status: "INTERNAL REVIEW" },
+                        }).then(
                           () => invalidate(),
                           (err: unknown) =>
                             toast.error(err instanceof Error ? err.message : "Kunde inte ändra."),
                         )
                       }
                     >
-                      Till granskning
+                      Till intern granskning
                     </Button>
                   ) : null}
-                  {selected.status === "REVIEW" ? (
+                  {selected.status === "REVIEW" || selected.status === "INTERNAL REVIEW" ? (
                     <Button
                       onClick={() =>
                         void setStatus({ data: { id: selected.id, status: "APPROVED" } }).then(
@@ -357,6 +390,7 @@ function LinkedInPage() {
                       }).then(
                         (res) => {
                           toast.success(`Lagt i kö: ${res.status}`);
+                          void capability.refetch();
                           invalidate();
                         },
                         (err: unknown) =>
@@ -372,7 +406,11 @@ function LinkedInPage() {
                     variant="outline"
                     onClick={() =>
                       void publish({ data: { post_id: selected.id } }).then(
-                        (res) => toast.message(res.message),
+                        (res) => {
+                          toast.message(res.message);
+                          void capability.refetch();
+                          invalidate();
+                        },
                         (err: unknown) =>
                           toast.error(
                             err instanceof Error ? err.message : "Försöket misslyckades.",
@@ -381,7 +419,7 @@ function LinkedInPage() {
                     }
                   >
                     <Send aria-hidden="true" />
-                    Testa publicering
+                    Verifiera publiceringsförsök
                   </Button>
                 </div>
                 {selected.status !== "APPROVED" && !selected.status.startsWith("SCHEDULED") ? (
@@ -403,7 +441,7 @@ function LinkedInPage() {
                     </p>
                     <article className="rounded-lg border border-border bg-background/70 p-4">
                       <p className="text-sm font-semibold">ParkKey™</p>
-                      <p className="text-xs text-muted-foreground">Sponsrat · nu</p>
+                      <p className="text-xs text-muted-foreground">Förhandsvisning · intern</p>
                       <p className="mt-3 whitespace-pre-wrap text-sm">{selected.copy_sv}</p>
                       <div className="mt-3 aspect-[1.91/1] rounded-md border border-dashed border-border bg-card/60 p-3 text-xs text-muted-foreground">
                         {attachedIds.length > 0
@@ -418,7 +456,7 @@ function LinkedInPage() {
                     </p>
                     <article className="mx-auto w-[300px] rounded-lg border border-border bg-background/70 p-3">
                       <p className="text-sm font-semibold">ParkKey™</p>
-                      <p className="text-[11px] text-muted-foreground">Sponsrat · nu</p>
+                      <p className="text-[11px] text-muted-foreground">Förhandsvisning · intern</p>
                       <p className="mt-2 line-clamp-6 whitespace-pre-wrap text-[13px]">
                         {selected.copy_sv}
                       </p>
