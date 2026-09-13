@@ -30,6 +30,7 @@ export const Route = createFileRoute("/_authenticated")({
  */
 function MembershipGate({ children }: { children: React.ReactNode }) {
   const { loading, approved, member, accessError, user, signOut } = useParkkeySession();
+  const accountLabel = user?.email?.trim() || "det inloggade kontot";
 
   if (loading) {
     return (
@@ -52,8 +53,8 @@ function MembershipGate({ children }: { children: React.ReactNode }) {
           {accessError
             ? accessError
             : member
-              ? `Ditt ParkKey-konto (${user?.email}) har status ${member.status}. En administratör i CoreOS måste godkänna dig innan studion öppnas.`
-              : `Kontot ${user?.email} är inte godkänt i ParkKey-teamet. Be en administratör förbereda e-postadressen i CoreOS.`}
+              ? `Ditt ParkKey-konto (${accountLabel}) har status ${member.status}. En administratör i CoreOS måste godkänna dig innan studion öppnas.`
+              : `Kontot ${accountLabel} är inte godkänt i ParkKey-teamet. Be en administratör förbereda e-postadressen i CoreOS.`}
         </p>
         <p className="mt-4 text-xs text-muted-foreground">
           Film Studio använder samma inloggning och samma godkännanden som CoreOS. Ingen separat
