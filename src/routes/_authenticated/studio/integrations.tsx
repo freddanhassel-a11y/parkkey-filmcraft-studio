@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { PlugZap, ShieldCheck } from "lucide-react";
+import { ExternalLink, PlugZap, ShieldCheck } from "lucide-react";
 
 import { listIntegrations, verifyIntegration } from "@/lib/integrations.functions";
 import { SectionHeading } from "@/components/studio/brand";
@@ -30,16 +30,17 @@ export const Route = createFileRoute("/_authenticated/studio/integrations")({
 });
 
 const CHECKLIST = [
-  "Skapa en LinkedIn-app kopplad till ParkKeys företagssida.",
-  "Begär rättigheterna w_member_social och r_liteprofile (eller organisationsmotsvarigheten).",
-  "Godkänn appen i LinkedIn Developer-portalen och slutför OAuth-flödet.",
-  "Lägg in nyckeln i projektets hemligheter som LINKEDIN_API_KEY — aldrig i webbläsarkod.",
-  "Kör Verifiera här och kontrollera att status blir CONNECTED innan något schemaläggs som publicerbart.",
+  "Skapa eller välj ParkKeys LinkedIn-app i LinkedIn Developer-portalen och koppla rätt företagssida när organisationspublicering ska användas.",
+  "För publicering som medlem: aktivera Share on LinkedIn och begär w_member_social. För företagssida: använd w_organization_social och verifiera att kontot har rätt sidbehörighet.",
+  "Konfigurera OAuth-appen server-side med LINKEDIN_CLIENT_ID, LINKEDIN_CLIENT_SECRET och LINKEDIN_REDIRECT_URI. Lägg aldrig dessa värden i klientkod.",
+  "Slutför LinkedIns member-consent för rätt konto och lagra access token som LINKEDIN_ACCESS_TOKEN i produktionsmiljön — aldrig i GitHub eller webbläsaren.",
+  "Kör Verifiera här. CONNECTED får bara visas när både CoreOS-capability och server-side Posts API-transport är verifierade.",
 ];
 
 function statusTone(status: string) {
   if (status === "CONNECTED") return "text-status-verified border-status-verified/50";
-  if (status === "ERROR") return "text-status-error border-status-error/50";
+  if (status === "ERROR" || status === "FAILED")
+    return "text-status-error border-status-error/50";
   return "text-status-unknown border-status-unknown/40";
 }
 
@@ -57,7 +58,7 @@ function IntegrationsPage() {
       <SectionHeading
         eyebrow="Integrationer"
         title="Anslutningar"
-        description="Status sätts bara av en verklig kontroll mot serverns miljö. Saknas nyckel visas NOT CONNECTED — aldrig grönt för okänt läge."
+        description="Status sätts bara av en verklig kontroll mot serverns miljö. Saknas OAuth, token eller verifierad capability visas det öppet — aldrig grönt för okänt läge."
       />
 
       <div
@@ -66,8 +67,8 @@ function IntegrationsPage() {
       >
         <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 text-primary" />
         <p>
-          Alla nycklar ligger i serverns miljö. Webbläsaren ser aldrig en token, och all publicering
-          och leverans går genom serverfunktioner efter behörighetskontroll.
+          Alla hemligheter ligger i serverns miljö. Webbläsaren ser aldrig en access token, och all
+          publicering och leverans går genom serverfunktioner efter behörighetskontroll.
         </p>
       </div>
 
@@ -137,7 +138,15 @@ function IntegrationsPage() {
       )}
 
       <section aria-label="Adminchecklista för LinkedIn" className="space-y-3">
-        <h2 className="text-lg font-semibold">Adminchecklista — LinkedIn-publicering</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Adminchecklista — LinkedIn OAuth & publicering</h2>
+          <Button asChild size="sm" variant="outline">
+            <a href="https://www.linkedin.com/developers/apps" target="_blank" rel="noreferrer">
+              LinkedIn Developer
+              <ExternalLink aria-hidden="true" />
+            </a>
+          </Button>
+        </div>
         <ol className="space-y-2 rounded-xl border border-border bg-card/60 p-5 text-sm">
           {CHECKLIST.map((item, i) => (
             <li key={item} className="flex gap-3">
@@ -147,8 +156,8 @@ function IntegrationsPage() {
           ))}
         </ol>
         <p className="text-xs text-muted-foreground">
-          Fram till dess är LinkedIn-integrationen inte live och kön står som SCHEDULED — CONNECTION
-          REQUIRED.
+          Film Studio använder LinkedIn Posts API. Fram till att OAuth och token verkligen är
+          verifierade står kön som SCHEDULED — CONNECTION REQUIRED och inget publiceras externt.
         </p>
       </section>
     </div>
