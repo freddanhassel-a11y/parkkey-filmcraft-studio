@@ -2,12 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
 
-export type ReadinessState =
-  | "CONNECTED"
-  | "NOT CONNECTED"
-  | "DEGRADED"
-  | "MANUAL CHECK"
-  | "FAILED";
+export type ReadinessState = "CONNECTED" | "NOT CONNECTED" | "DEGRADED" | "MANUAL CHECK" | "FAILED";
 
 export type ProductionReadinessItem = {
   key: "coreos" | "image-ai" | "linkedin" | "video-renderer" | "customer-delivery";
@@ -121,7 +116,11 @@ export const getProductionReadiness = createServerFn({ method: "GET" })
       verifiedConnection(byProvider.get("image-generation"), "Image AI", "image-ai"),
       verifiedConnection(byProvider.get("linkedin"), "LinkedIn", "linkedin"),
       verifiedConnection(byProvider.get("video-renderer"), "Video Renderer", "video-renderer"),
-      verifiedConnection(byProvider.get("coreos-delivery"), "Customer Delivery", "customer-delivery"),
+      verifiedConnection(
+        byProvider.get("coreos-delivery"),
+        "Customer Delivery",
+        "customer-delivery",
+      ),
     ];
 
     return { items, checkedAt: new Date().toISOString() };
