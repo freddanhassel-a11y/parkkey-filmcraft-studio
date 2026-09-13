@@ -33,7 +33,7 @@ const NAV = [
   { to: "/studio/linkedin", label: "LinkedIn Studio", icon: Linkedin, exact: false },
   { to: "/studio/media", label: "Mediabibliotek", icon: Boxes, exact: false },
   { to: "/studio/customers", label: "Kundmaterial", icon: Handshake, exact: false },
-  { to: "/studio/delivery", label: "Leveranser", icon: PackageCheck, exact: false },
+  { to: "/studio/assets", label: "Leveranser", icon: PackageCheck, exact: false },
   { to: "/studio/schedule", label: "Schema", icon: CalendarClock, exact: false },
   { to: "/studio/prompts", label: "Promptbibliotek", icon: Sparkles, exact: false },
   { to: "/studio/integrations", label: "Integrationer", icon: Plug, exact: false },
