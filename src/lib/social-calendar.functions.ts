@@ -24,9 +24,7 @@ async function linkedinSchedulingState(
 
 export const rescheduleSocialSchedule = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
-    (d: { schedule_id: string; scheduled_at: string; timezone?: string | null }) => d,
-  )
+  .inputValidator((d: { schedule_id: string; scheduled_at: string; timezone?: string | null }) => d)
   .handler(async ({ data, context }) => {
     const when = new Date(data.scheduled_at);
     if (Number.isNaN(when.getTime())) throw new Error("Ogiltig schematid.");
