@@ -76,13 +76,16 @@ export const getVideoRenderPipeline = createServerFn({ method: "POST" })
       (render) => render.status === "READY" && Boolean(render.file_url),
     );
 
-    await logAudit(context.db, context, "render.provider.check", {
-      type: "film_project",
-      id: data.project_id,
-    }, {
-      provider_state: providerState.state,
-      rendered_master_exists: Boolean(master),
-    });
+    await logAudit(
+      context.db,
+      context,
+      "render.provider.check",
+      { type: "film_project", id: data.project_id },
+      {
+        provider_state: providerState.state,
+        rendered_master_exists: Boolean(master),
+      },
+    );
 
     return {
       project: project.data,
@@ -156,7 +159,11 @@ export const registerRenderedMaster = createServerFn({ method: "POST" })
     }
     if (!head.ok) throw new Error(`Renderfilen svarade med HTTP ${head.status}.`);
     const contentType = (head.headers.get("content-type") ?? "").toLowerCase();
-    if (contentType && !contentType.includes("video/mp4") && !contentType.includes("octet-stream")) {
+    if (
+      contentType &&
+      !contentType.includes("video/mp4") &&
+      !contentType.includes("octet-stream")
+    ) {
       throw new Error(`Renderfilen är inte verifierad som MP4 (${contentType}).`);
     }
 
@@ -181,19 +188,22 @@ export const registerRenderedMaster = createServerFn({ method: "POST" })
       .single();
     if (error) throw new Error(error.message);
 
-    await logAudit(context.db, context, "render.master.register", {
-      type: "render",
-      id: row.id,
-    }, {
-      project_id: data.project_id,
-      version_id: data.version_id ?? null,
-      provider: data.provider,
-      file_verified_http: true,
-      width: data.width,
-      height: data.height,
-      fps: data.fps,
-      codec: data.codec,
-    });
+    await logAudit(
+      context.db,
+      context,
+      "render.master.register",
+      { type: "render", id: row.id },
+      {
+        project_id: data.project_id,
+        version_id: data.version_id ?? null,
+        provider: data.provider,
+        file_verified_http: true,
+        width: data.width,
+        height: data.height,
+        fps: data.fps,
+        codec: data.codec,
+      },
+    );
 
     return row;
   });
