@@ -108,9 +108,7 @@ function DeliveryPage() {
   );
   const approvedPosts = useMemo(
     () =>
-      (delivery.data?.posts ?? []).filter((item) =>
-        ["APPROVED", "EXPORTED"].includes(item.status),
-      ),
+      (delivery.data?.posts ?? []).filter((item) => ["APPROVED", "EXPORTED"].includes(item.status)),
     [delivery.data?.posts],
   );
 
@@ -438,7 +436,10 @@ function DeliveryPage() {
           </dl>
         </div>
 
-        <Button onClick={() => void createDraft()} disabled={!selectedContact || !hasApprovedMaterial}>
+        <Button
+          onClick={() => void createDraft()}
+          disabled={!selectedContact || !hasApprovedMaterial}
+        >
           <PackageCheck aria-hidden="true" />
           Skapa verifierat DRAFT-paket
         </Button>
@@ -495,7 +496,8 @@ function DeliveryPage() {
                     <p className="font-semibold">{pkg.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {pkg.coreos_display_name ?? "Ingen CoreOS-post"} ·{" "}
-                      {recipients.map((recipient) => recipient.email).join(", ") || "Ingen mottagare"}
+                      {recipients.map((recipient) => recipient.email).join(", ") ||
+                        "Ingen mottagare"}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
