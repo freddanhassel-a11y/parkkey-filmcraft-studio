@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -27,26 +27,6 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
-
-      - name: Format active Phase 2 sources
-        if: github.event_name == 'push' && github.ref_name == 'feat/phase-2-production-workflow'
-        run: |
-          bunx prettier --write \
-            src/lib/linkedin-capability.ts \
-            src/lib/social.functions.ts \
-            src/routes/_authenticated/studio/linkedin.tsx \
-            'src/routes/_authenticated/studio/project.$id.tsx'
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add \
-              src/lib/linkedin-capability.ts \
-              src/lib/social.functions.ts \
-              src/routes/_authenticated/studio/linkedin.tsx \
-              'src/routes/_authenticated/studio/project.$id.tsx'
-            git commit -m "style: format Phase 2 sources"
-            git push origin "HEAD:${GITHUB_REF_NAME}"
-          fi
 
       - name: Typecheck
         run: bunx tsc --noEmit
