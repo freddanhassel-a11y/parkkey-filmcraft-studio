@@ -14,7 +14,9 @@ export type AuditAction =
   | "social.publish.blocked"
   | "social.publish.attempt"
   | "delivery.package.create"
-  | "delivery.package.confirm";
+  | "delivery.package.confirm"
+  | "render.master.register"
+  | "render.provider.check";
 
 type AuditClient = {
   from: (table: "audit_events") => {
