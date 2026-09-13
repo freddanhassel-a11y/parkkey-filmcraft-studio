@@ -1,29 +1,40 @@
-# Welcome to your Lovable project
+# ParkKey Film Studio
 
-This project was built with [Lovable](https://lovable.dev).
+ParkKey Film Studio is published independently from Lovable.
 
-## Build with Lovable
+## Production
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Canonical production runtime:
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+`https://parkkey-filmcraft-studio.parkkey-coreos-nordic-2026.workers.dev`
+
+The production build is created from GitHub `main` and deployed to Cloudflare Workers by the ParkKey release workflow in `freddanhassel-a11y/parkkey-os`.
+
+**Publishing does not require Lovable credits and does not wait for Lovable to sync GitHub.** Lovable can still be used as an editor when desired, but it is not the production release dependency.
+
+The release workflow:
+
+- checks out the latest `parkkey-filmcraft-studio/main`
+- installs locked dependencies
+- builds the TanStack/Nitro application for Cloudflare
+- deploys the Worker
+- smoke-tests `/auth` and `/studio`
+- runs automatically every hour and can also be dispatched manually
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+git clone https://github.com/freddanhassel-a11y/parkkey-filmcraft-studio.git
+cd parkkey-filmcraft-studio
+bun install --frozen-lockfile
+bun run dev
 ```
 
-## Built with
+## Stack
 
 - TanStack Start
 - TypeScript
 - React
 - Tailwind CSS
+- Supabase auth/data services
+- Cloudflare Workers production runtime
