@@ -39,8 +39,7 @@ const CHECKLIST = [
 
 function statusTone(status: string) {
   if (status === "CONNECTED") return "text-status-verified border-status-verified/50";
-  if (status === "ERROR" || status === "FAILED")
-    return "text-status-error border-status-error/50";
+  if (status === "ERROR" || status === "FAILED") return "text-status-error border-status-error/50";
   return "text-status-unknown border-status-unknown/40";
 }
 
