@@ -6,6 +6,7 @@ on:
       - feat/film-studio-production-phase-2-v2
       - feat/phase-2-production-workflow
       - feat/phase-3-delivery-proof-qa
+      - feat/aaa-release-hardening
   pull_request:
     branches:
       - main
@@ -19,7 +20,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+
+      - name: Security source preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tracked_env="$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -vE '(^|/)\.env\.example$' || true)"
+          if [[ -n "$tracked_env" ]]; then
+            echo "::error::Tracked environment file(s) found:"
+            printf '%s\n' "$tracked_env"
+            exit 1
+          fi
+
+          if git grep -n 'SUPABASE_SERVICE_ROLE_KEY' -- 'src/**'; then
+            echo "::error::Legacy Supabase service-role runtime path found under src/."
+            exit 1
+          fi
+
+          if git grep -n -E 'sb_secret_[A-Za-z0-9_-]{16,}|sk-[A-Za-z0-9_-]{20,}' -- ':!*.md' ':!docs/**'; then
+            echo "::error::Potential secret-like credential found in tracked source."
+            exit 1
+          fi
+
+          echo 'Security source preflight passed.'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -33,6 +58,19 @@ jobs:
       # Build first so newly added file routes are present before tsc validates route types.
       - name: Generate routes and production build
         run: bun run build
+
+      - name: Bundle regression guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          largest_bytes="$(find .output/public/assets -type f -name '*.js' -printf '%s\n' | sort -nr | head -1)"
+          largest_bytes="${largest_bytes:-0}"
+          limit_bytes=700000
+          echo "Largest client JS chunk: ${largest_bytes} bytes (budget ${limit_bytes})."
+          if (( largest_bytes > limit_bytes )); then
+            echo "::error::Client bundle regression: largest JS chunk exceeds ${limit_bytes} bytes."
+            exit 1
+          fi
 
       - name: Typecheck
         run: bunx tsc --noEmit
