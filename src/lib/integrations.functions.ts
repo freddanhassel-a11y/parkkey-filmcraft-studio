@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
+import { getLinkedInCapabilityFromCoreos } from "./linkedin-capability";
+import { getLinkedInRuntimeReadiness } from "./linkedin.server";
 
 export const listIntegrations = createServerFn({ method: "GET" })
   .middleware([requireParkkeyAuth])
@@ -14,8 +16,9 @@ export const listIntegrations = createServerFn({ method: "GET" })
   });
 
 /**
- * Sanningskontroll av anslutningar. Statusen sätts bara av en verklig kontroll —
- * finns ingen nyckel i serverns miljö blir svaret NOT CONNECTED.
+ * Truth-safe integration verification. CONNECTED is only emitted when the
+ * canonical CoreOS integration record is verified and the production runtime
+ * has the corresponding server-side transport configured.
  */
 export const verifyIntegration = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
@@ -23,38 +26,25 @@ export const verifyIntegration = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const provider = data.provider;
     let status = "NOT CONNECTED";
-    let notes = "Ingen anslutning hittades i serverns miljö.";
+    let notes = "Ingen verifierad anslutning hittades i serverns miljö.";
 
     if (provider === "linkedin") {
-      const lovableKey = process.env["LOVABLE_API_KEY"];
-      const linkedinKey = process.env["LINKEDIN_API_KEY"];
-      if (!linkedinKey) {
+      const capability = await getLinkedInCapabilityFromCoreos(context.coreos);
+      const runtime = getLinkedInRuntimeReadiness();
+
+      if (capability.publishCapable && runtime.configured) {
+        status = "CONNECTED";
+        notes = `CoreOS har verifierat LinkedIn-identitet, publiceringssyfte och beviljade capabilities. Direct Posts API transport är konfigurerad server-side (API ${runtime.apiVersion}).`;
+      } else if (capability.state === "FAILED") {
+        status = "FAILED";
+        notes = capability.note;
+      } else if (capability.publishCapable && !runtime.configured) {
+        status = "MANUAL CHECK";
         notes =
-          "LinkedIn-anslutningen saknas. En administratör måste ansluta LinkedIn med rättigheten w_member_social innan publicering kan aktiveras.";
-      } else if (!lovableKey) {
-        notes = "LinkedIn-nyckel finns men ParkKeys API-nyckel saknas i serverns miljö.";
+          "CoreOS har verifierat LinkedIn-kapaciteten, men produktion saknar LINKEDIN_ACCESS_TOKEN. LinkedIns OAuth-consent måste slutföras och token lagras server-side innan publicering kan aktiveras.";
       } else {
-        try {
-          const res = await fetch(
-            "https://connector-gateway.lovable.dev/api/v1/verify_credentials",
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${lovableKey}`,
-                "X-Connection-Api-Key": linkedinKey,
-              },
-            },
-          );
-          const body = await res.text();
-          if (res.ok && body.includes("verified")) {
-            status = "CONNECTED";
-            notes = "Anslutningen verifierad mot LinkedIn.";
-          } else {
-            notes = `Verifieringen misslyckades (${res.status}): ${body.slice(0, 300)}`;
-          }
-        } catch (error) {
-          notes = `Verifieringen kunde inte genomföras: ${error instanceof Error ? error.message : "okänt fel"}`;
-        }
+        status = capability.state;
+        notes = `${capability.note} ${runtime.note}`;
       }
     } else if (provider === "image-generation") {
       const lovableKey = process.env["LOVABLE_API_KEY"];
@@ -79,7 +69,7 @@ export const verifyIntegration = createServerFn({ method: "POST" })
       }
     } else {
       notes =
-        "Ingen automatisk kontroll finns för den här leverantören. Status sätts manuellt av administratör.";
+        "Ingen automatisk kontroll finns för den här leverantören. Status kräver manuell verifiering.";
     }
 
     const { data: row, error } = await context.db

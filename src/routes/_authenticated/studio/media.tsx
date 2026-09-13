@@ -184,7 +184,7 @@ function MediaPage() {
         !term ||
         a.name.toLowerCase().includes(term) ||
         (a.category ?? "").toLowerCase().includes(term) ||
-        a.tags.some((t) => t.toLowerCase().includes(term));
+        (a.tags as string[]).some((t: string) => t.toLowerCase().includes(term));
       return kindOk && textOk;
     });
   }, [data, kindFilter, search]);

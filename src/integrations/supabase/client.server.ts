@@ -39,7 +39,8 @@ function firstSecretKeyFromJson(value: string | undefined): string | undefined {
     const preferred = parsed["default"];
     if (typeof preferred === "string" && preferred.trim()) return preferred.trim();
     const fallback = Object.values(parsed).find(
-      (candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0,
+      (candidate): candidate is string =>
+        typeof candidate === "string" && candidate.trim().length > 0,
     );
     return fallback?.trim();
   } catch {

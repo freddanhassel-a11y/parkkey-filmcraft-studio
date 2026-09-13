@@ -174,7 +174,7 @@ function LibraryPage() {
                 </p>
                 {p.tags.length ? (
                   <ul className="mt-3 flex flex-wrap gap-1.5">
-                    {p.tags.map((t) => (
+                    {p.tags.map((t: string) => (
                       <li
                         key={t}
                         className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground"
