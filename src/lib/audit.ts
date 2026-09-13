@@ -13,6 +13,8 @@ export type AuditAction =
   | "social.schedule"
   | "social.publish.blocked"
   | "social.publish.attempt"
+  | "social.publish.success"
+  | "social.publish.failed"
   | "delivery.package.create"
   | "delivery.package.confirm"
   | "render.master.register"
