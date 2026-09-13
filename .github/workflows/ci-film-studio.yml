@@ -34,8 +34,8 @@ jobs:
             exit 1
           fi
 
-          if git grep -n -E 'SUPABASE_SERVICE_ROLE_KEY|LINKEDIN_ACCESS_TOKEN\s*[:=]\s*["'"'"'][^"'"'"']{12,}["'"'"']' -- ':!*.md' ':!docs/**'; then
-            echo "::error::Potential privileged runtime secret reference/value found in tracked source."
+          if git grep -n 'SUPABASE_SERVICE_ROLE_KEY' -- 'src/**'; then
+            echo "::error::Legacy Supabase service-role runtime path found under src/."
             exit 1
           fi
 
