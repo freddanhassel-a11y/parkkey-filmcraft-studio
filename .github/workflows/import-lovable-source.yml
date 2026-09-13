@@ -38,7 +38,7 @@ jobs:
             ROOT="$FIRST"
           fi
 
-          rsync -a --delete-excluded \
+          rsync -a \
             --exclude '.git/' \
             --exclude '.env' \
             --exclude '.env.*' \
@@ -52,7 +52,7 @@ jobs:
           rm -f .env .env.*
           rm -f 'ParkKey Film Studio.zip'
 
-          if git grep -n -I -E '(service_role|SUPABASE_SERVICE_ROLE|sk-[A-Za-z0-9_-]{20,}|BEGIN PRIVATE KEY)' -- . ':!README.md' ':!*.lock' ':!bun.lock' 2>/dev/null; then
+          if grep -RInE --exclude='README.md' --exclude='*.lock' --exclude='bun.lock' --exclude-dir='.git' '(SUPABASE_SERVICE_ROLE|BEGIN PRIVATE KEY|sk-[A-Za-z0-9_-]{20,})' .; then
             echo 'Potential secret material found. Refusing to commit.' >&2
             exit 1
           fi
