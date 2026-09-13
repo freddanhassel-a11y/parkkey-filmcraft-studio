@@ -3,10 +3,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { CalendarClock, Copy, Linkedin, Send, TriangleAlert } from "lucide-react";
+import { CalendarClock, Copy, Linkedin, TriangleAlert } from "lucide-react";
 
 import {
-  attemptPublish,
   duplicateSocialPost,
   listSocialPosts,
   scheduleSocialPost,
@@ -16,6 +15,7 @@ import {
 } from "@/lib/social.functions";
 import { getLinkedInCapability } from "@/lib/linkedin-capability.functions";
 import { SectionHeading } from "@/components/studio/brand";
+import { LinkedInPublishGate } from "@/components/studio/LinkedInPublishGate";
 import { StatusBadge, TruthBadge } from "@/components/studio/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +53,6 @@ function LinkedInPage() {
   const setStatus = useServerFn(setSocialPostStatus);
   const setAssets = useServerFn(setSocialPostAssets);
   const schedule = useServerFn(scheduleSocialPost);
-  const publish = useServerFn(attemptPublish);
   const duplicate = useServerFn(duplicateSocialPost);
 
   const { data, isLoading, error } = useQuery({
@@ -402,25 +401,15 @@ function LinkedInPage() {
                   >
                     Lägg i kö
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      void publish({ data: { post_id: selected.id } }).then(
-                        (res) => {
-                          toast.message(res.message);
-                          void capability.refetch();
-                          invalidate();
-                        },
-                        (err: unknown) =>
-                          toast.error(
-                            err instanceof Error ? err.message : "Försöket misslyckades.",
-                          ),
-                      )
-                    }
-                  >
-                    <Send aria-hidden="true" />
-                    Verifiera publiceringsförsök
-                  </Button>
+                  <LinkedInPublishGate
+                    postId={selected.id}
+                    status={selected.status}
+                    attachedCount={attachedIds.length}
+                    onResult={() => {
+                      void capability.refetch();
+                      invalidate();
+                    }}
+                  />
                 </div>
                 {selected.status !== "APPROVED" && !selected.status.startsWith("SCHEDULED") ? (
                   <p className="mt-2 text-xs text-muted-foreground">
