@@ -99,8 +99,8 @@ export const getVideoRenderPipeline = createServerFn({ method: "POST" })
   });
 
 /**
- * Registers a REAL externally rendered MP4 only after the server can reach it.
- * This does not manufacture a render and cannot create READY without a file.
+ * Registers a REAL externally rendered MP4 only after the server can reach it
+ * and the exact version has passed the server-side QA gate.
  */
 export const registerRenderedMaster = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
@@ -138,15 +138,28 @@ export const registerRenderedMaster = createServerFn({ method: "POST" })
     if (projectError) throw new Error(projectError.message);
     if (!project) throw new Error("Filmprojektet finns inte.");
 
-    if (data.version_id) {
-      const { data: version, error: versionError } = await context.db
-        .from("film_versions")
-        .select("id,project_id")
-        .eq("id", data.version_id)
-        .eq("project_id", data.project_id)
-        .maybeSingle();
-      if (versionError) throw new Error(versionError.message);
-      if (!version) throw new Error("Filmversionen tillhör inte projektet.");
+    if (!data.version_id) {
+      throw new Error("En specifik filmversion krävs för en verifierad master.");
+    }
+
+    const { data: version, error: versionError } = await context.db
+      .from("film_versions")
+      .select("id,project_id")
+      .eq("id", data.version_id)
+      .eq("project_id", data.project_id)
+      .maybeSingle();
+    if (versionError) throw new Error(versionError.message);
+    if (!version) throw new Error("Filmversionen tillhör inte projektet.");
+
+    const { data: qa, error: qaError } = await context.db
+      .from("qa_checklists")
+      .select("id,passed")
+      .eq("project_id", data.project_id)
+      .eq("version_id", data.version_id)
+      .maybeSingle();
+    if (qaError) throw new Error(qaError.message);
+    if (!qa?.passed) {
+      throw new Error("QA-grinden måste vara godkänd server-side innan en master kan registreras.");
     }
 
     let head: Response;
@@ -171,7 +184,7 @@ export const registerRenderedMaster = createServerFn({ method: "POST" })
       .from("renders")
       .insert({
         project_id: data.project_id,
-        version_id: data.version_id ?? null,
+        version_id: data.version_id,
         provider: data.provider.trim(),
         status: "READY",
         file_url: url.toString(),
@@ -195,8 +208,9 @@ export const registerRenderedMaster = createServerFn({ method: "POST" })
       { type: "render", id: row.id },
       {
         project_id: data.project_id,
-        version_id: data.version_id ?? null,
+        version_id: data.version_id,
         provider: data.provider,
+        qa_verified: true,
         file_verified_http: true,
         width: data.width,
         height: data.height,
