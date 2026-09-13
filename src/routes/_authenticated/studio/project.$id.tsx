@@ -77,7 +77,7 @@ function ProjectPage() {
 
   useEffect(() => {
     if (!data?.project) return;
-    const [width, height] = String(data.project.resolution ?? "1920x1080")
+    const [width = 1920, height = 1080] = String(data.project.resolution ?? "1920x1080")
       .split(/[x×]/i)
       .map((value) => Number(value.trim()));
     if (Number.isFinite(width) && width > 0) setRenderWidth(String(width));
