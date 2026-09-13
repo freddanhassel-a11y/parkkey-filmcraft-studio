@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus, Star, Sparkles, Film, Download } from "lucide-react";
+import { Plus, Star, Sparkles, Film, Download, ShieldCheck } from "lucide-react";
 import { getDashboard } from "@/lib/studio.functions";
+import { getProductionReadiness } from "@/lib/production-readiness.functions";
 import { Button } from "@/components/ui/button";
 import { SectionHeading } from "@/components/studio/brand";
 import { StatusBadge, TruthBadge } from "@/components/studio/StatusBadge";
@@ -14,9 +15,14 @@ export const Route = createFileRoute("/_authenticated/studio/")({
 
 function Dashboard() {
   const fetchDashboard = useServerFn(getDashboard);
+  const fetchReadiness = useServerFn(getProductionReadiness);
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => fetchDashboard(),
+  });
+  const readiness = useQuery({
+    queryKey: ["production-readiness"],
+    queryFn: () => fetchReadiness(),
   });
 
   if (isLoading) {
@@ -81,6 +87,47 @@ function Dashboard() {
         <StatCard label="Pågående" value={inProgress.length} icon={Sparkles} />
         <StatCard label="Favoriter" value={favorites.length} icon={Star} />
         <StatCard label="Renderade filer" value={readyRenders.length} icon={Download} />
+      </section>
+
+      <section className="space-y-4" aria-label="Production readiness">
+        <SectionHeading
+          eyebrow="Production readiness"
+          title="Vad är faktiskt anslutet?"
+          description="Status visas bara som CONNECTED när en verklig kontroll kan styrka anslutningen. Okända lägen blir aldrig gröna."
+        >
+          <Button asChild variant="secondary">
+            <Link to="/studio/integrations">Integrationer</Link>
+          </Button>
+        </SectionHeading>
+        {readiness.isLoading ? (
+          <div className="grid gap-3 md:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-28" />
+            ))}
+          </div>
+        ) : readiness.isError ? (
+          <div className="surface-glass rounded-xl border border-status-error/30 p-4 text-sm text-status-error">
+            Readiness-kontrollen kunde inte slutföras. Ingen anslutning antas vara aktiv.
+          </div>
+        ) : (
+          <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            {(readiness.data?.items ?? []).map((item) => (
+              <li key={item.key} className="surface-glass rounded-xl p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <ShieldCheck aria-hidden="true" className="size-4 text-primary" />
+                  <StatusBadge status={item.state} />
+                </div>
+                <h3 className="mt-3 text-sm font-semibold text-foreground">{item.label}</h3>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.note}</p>
+                {item.verifiedAt ? (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Verifierad: {new Date(item.verifiedAt).toLocaleString("sv-SE")}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="space-y-4">
@@ -184,7 +231,7 @@ function Dashboard() {
                   </Button>
                 ) : (
                   <span className="text-xs text-muted-foreground">
-                    Ingen renderad fil ännu — registrera en MP4 på versionen.
+                    No rendered file yet
                   </span>
                 )}
               </li>
