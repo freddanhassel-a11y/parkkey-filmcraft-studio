@@ -86,7 +86,9 @@ function QaPage() {
           </p>
         ) : release.error ? (
           <div className="rounded-xl border border-status-error/50 bg-card/70 p-5">
-            <p className="text-sm font-semibold text-status-error">Release proof kunde inte köras</p>
+            <p className="text-sm font-semibold text-status-error">
+              Release proof kunde inte köras
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {release.error instanceof Error ? release.error.message : "Okänt fel"}
             </p>
