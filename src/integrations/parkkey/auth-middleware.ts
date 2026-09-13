@@ -28,8 +28,8 @@ function coreosClientFor(token: string): CoreosClient {
  * 1. Requires a bearer token issued by the shared ParkKey identity service.
  * 2. Re-validates the token against that service (getUser revalidates server-side).
  * 3. Requires an approved CoreOS team_members row for that user.
- * 4. Only then exposes a Film Studio database client. Film Studio tables have no
- *    anon/authenticated grants at all, so the browser can never read them directly.
+ * 4. Reuses the same authenticated, user-scoped Supabase client for Film Studio data.
+ *    This keeps RLS active and removes the runtime dependency on a service-role secret.
  */
 export const requireParkkeyAuth = createMiddleware({ type: "function" }).server(
   async ({ next }) => {
@@ -70,11 +70,9 @@ export const requireParkkeyAuth = createMiddleware({ type: "function" }).server(
       throw new Response("Forbidden: ingen godkänd ParkKey-teambehörighet.", { status: 403 });
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
     return next({
       context: {
-        db: supabaseAdmin,
+        db: coreos,
         coreos,
         userId: user.id,
         email: user.email ?? member.email,
