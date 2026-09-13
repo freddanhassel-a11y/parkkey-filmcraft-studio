@@ -41,14 +41,23 @@ export async function claimAndReadMembership(): Promise<{
   verifyFailed: boolean;
 }> {
   try {
+    const { data: userData, error: userError } = await parkkeyAuth.auth.getUser();
+    if (userError || !userData.user?.id) {
+      throw userError ?? new Error("Authenticated ParkKey user is missing");
+    }
+
     const claim = await (
       parkkeyAuth.rpc as unknown as (fn: string) => Promise<{ error: { message?: string } | null }>
     )("claim_preapproved_team_member");
     if (claim.error) throw new Error(claim.error.message ?? "Team claim failed");
 
+    // Match CoreOS exactly: only read the membership row bound to the current auth user.
+    // Without this filter, admin/RLS visibility can expose multiple team_members rows and
+    // maybeSingle() fails even though the current account is already approved.
     const { data, error } = await parkkeyAuth
       .from("team_members")
       .select("id,user_id,full_name,email,title,status")
+      .eq("user_id", userData.user.id)
       .maybeSingle();
     if (error) throw error;
     return { member: (data as ParkkeyTeamMember | null) ?? null, verifyFailed: false };
