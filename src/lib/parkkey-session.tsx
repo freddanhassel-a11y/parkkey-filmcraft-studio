@@ -55,7 +55,12 @@ export function ParkkeySessionProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         return;
       }
-      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+      if (
+        event === "INITIAL_SESSION" ||
+        event === "SIGNED_IN" ||
+        event === "TOKEN_REFRESHED" ||
+        event === "USER_UPDATED"
+      ) {
         setSession(next);
         setLoading(true);
         window.setTimeout(() => {
@@ -83,6 +88,8 @@ export function ParkkeySessionProvider({ children }: { children: ReactNode }) {
     await parkkeyAuth.auth.signOut();
     setSession(null);
     setMember(null);
+    setAccessError(null);
+    setLoading(false);
   }, []);
 
   return (
