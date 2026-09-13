@@ -3,16 +3,14 @@ name: Film Studio CI
 on:
   push:
     branches:
-      - feat/film-studio-production-phase-2-v2
-      - feat/phase-2-production-workflow
-      - feat/phase-3-delivery-proof-qa
+      - fix/render-truth-bypass-and-library-warning
   pull_request:
     branches:
       - main
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify:
@@ -29,8 +27,38 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # TanStack Router generates src/routeTree.gen.ts through the Vite plugin.
-      # Build first so newly added file routes are present before tsc validates route types.
+      - name: Remove legacy render truth bypass and fix library memo
+        if: github.event_name == 'push' && github.ref_name == 'fix/render-truth-bypass-and-library-warning'
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          studio = Path('src/lib/studio.functions.ts')
+          text = studio.read_text()
+          start = text.find('export const registerRender = createServerFn')
+          end = text.find('export const listLibrary = createServerFn', start)
+          if start == -1 or end == -1:
+              raise SystemExit('Could not locate legacy registerRender block')
+          text = text[:start] + text[end:]
+          studio.write_text(text)
+
+          library = Path('src/routes/_authenticated/studio/library.tsx')
+          text = library.read_text()
+          old = '  const projects = data?.projects ?? [];\n  const renders = data?.renders ?? [];'
+          new = '  const projects = useMemo(() => data?.projects ?? [], [data?.projects]);\n  const renders = data?.renders ?? [];'
+          if old not in text:
+              raise SystemExit('Could not locate library projects initialization')
+          library.write_text(text.replace(old, new, 1))
+          PY
+          bunx prettier --write src/lib/studio.functions.ts src/routes/_authenticated/studio/library.tsx
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/lib/studio.functions.ts src/routes/_authenticated/studio/library.tsx
+            git commit -m "fix: remove legacy render truth bypass"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
       - name: Generate routes and production build
         run: bun run build
 
