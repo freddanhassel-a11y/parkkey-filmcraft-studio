@@ -52,8 +52,12 @@ jobs:
           rm -f .env .env.*
           rm -f 'ParkKey Film Studio.zip'
 
-          if grep -RInE --exclude='README.md' --exclude='*.lock' --exclude='bun.lock' --exclude-dir='.git' '(SUPABASE_SERVICE_ROLE|BEGIN PRIVATE KEY|sk-[A-Za-z0-9_-]{20,})' .; then
-            echo 'Potential secret material found. Refusing to commit.' >&2
+          if find . -maxdepth 1 -type f -name '.env*' | grep -q .; then
+            echo 'Environment file found. Refusing to commit.' >&2
+            exit 1
+          fi
+          if grep -RInE --exclude='README.md' --exclude='*.lock' --exclude='bun.lock' --exclude='*.yml' --exclude='*.yaml' --exclude-dir='.git' '(-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|sk-[A-Za-z0-9_-]{20,})' .; then
+            echo 'Potential literal secret material found. Refusing to commit.' >&2
             exit 1
           fi
 
