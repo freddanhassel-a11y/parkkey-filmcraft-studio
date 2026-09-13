@@ -9,6 +9,95 @@ import { logAudit } from "./audit";
  * som aktivitet på CoreOS-posten efter uttrycklig bekräftelse.
  */
 
+const APPROVED_DELIVERY_STATES = new Set(["APPROVED", "EXPORTED"]);
+
+async function assertReferencedMaterialApproved(
+  db: Parameters<typeof logAudit>[0],
+  refs: {
+    film_project_id?: string | null;
+    film_version_id?: string | null;
+    media_asset_id?: string | null;
+    social_post_id?: string | null;
+  },
+) {
+  const checks: Promise<void>[] = [];
+  let referenceCount = 0;
+
+  if (refs.film_project_id) {
+    referenceCount += 1;
+    checks.push(
+      db
+        .from("film_projects")
+        .select("id,status")
+        .eq("id", refs.film_project_id)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error) throw new Error(error.message);
+          if (!data || !APPROVED_DELIVERY_STATES.has(data.status)) {
+            throw new Error("Filmprojektet är inte APPROVED/EXPORTED på serversidan.");
+          }
+        }),
+    );
+  }
+
+  if (refs.film_version_id) {
+    referenceCount += 1;
+    checks.push(
+      db
+        .from("film_versions")
+        .select("id,status")
+        .eq("id", refs.film_version_id)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error) throw new Error(error.message);
+          if (!data || !APPROVED_DELIVERY_STATES.has(data.status)) {
+            throw new Error("Filmversionen är inte APPROVED/EXPORTED på serversidan.");
+          }
+        }),
+    );
+  }
+
+  if (refs.media_asset_id) {
+    referenceCount += 1;
+    checks.push(
+      db
+        .from("media_assets")
+        .select("id,approval_status,archived_at")
+        .eq("id", refs.media_asset_id)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error) throw new Error(error.message);
+          if (!data || data.archived_at || !APPROVED_DELIVERY_STATES.has(data.approval_status)) {
+            throw new Error("Mediematerialet är inte APPROVED/EXPORTED och aktivt på serversidan.");
+          }
+        }),
+    );
+  }
+
+  if (refs.social_post_id) {
+    referenceCount += 1;
+    checks.push(
+      db
+        .from("social_posts")
+        .select("id,status")
+        .eq("id", refs.social_post_id)
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (error) throw new Error(error.message);
+          if (!data || !APPROVED_DELIVERY_STATES.has(data.status)) {
+            throw new Error("Det sociala materialet är inte APPROVED/EXPORTED på serversidan.");
+          }
+        }),
+    );
+  }
+
+  if (referenceCount === 0) {
+    throw new Error("Leveranspaketet måste innehålla minst ett godkänt materialobjekt.");
+  }
+
+  await Promise.all(checks);
+}
+
 export const listDeliveryPackages = createServerFn({ method: "GET" })
   .middleware([requireParkkeyAuth])
   .handler(async ({ context }) => {
@@ -70,6 +159,31 @@ export const createDeliveryPackage = createServerFn({ method: "POST" })
       if (!r.email?.includes("@"))
         throw new Error(`Ogiltig e-postadress för ${r.full_name || "mottagare"}.`);
     }
+    if (data.expires_at) {
+      const expiresAt = new Date(data.expires_at);
+      if (Number.isNaN(expiresAt.getTime()) || expiresAt <= new Date()) {
+        throw new Error("Utgångstiden måste vara ett giltigt framtida datum.");
+      }
+    }
+
+    await assertReferencedMaterialApproved(context.db, data);
+
+    for (const recipient of data.recipients) {
+      if (!recipient.coreos_contact_id) continue;
+      const { data: contact, error } = await context.coreos
+        .from("contacts")
+        .select("id,full_name,email")
+        .eq("id", recipient.coreos_contact_id)
+        .maybeSingle();
+      if (error) throw new Error(`CoreOS nekade mottagarkontroll: ${error.message}`);
+      if (!contact) throw new Error(`CoreOS-kontakten för ${recipient.full_name} finns inte.`);
+      const coreosEmail = (contact.email as string | null)?.trim().toLowerCase();
+      if (!coreosEmail || coreosEmail !== recipient.email.trim().toLowerCase()) {
+        throw new Error(
+          `E-postadressen för ${recipient.full_name} matchar inte den valda CoreOS-kontakten.`,
+        );
+      }
+    }
 
     const { data: row, error } = await context.db
       .from("delivery_packages")
@@ -112,6 +226,7 @@ export const createDeliveryPackage = createServerFn({ method: "POST" })
       {
         recipients: data.recipients.map((r) => r.email),
         truth_label: data.truth_label,
+        approval_verified_server_side: true,
       },
     );
     return row;
@@ -127,10 +242,18 @@ export const confirmDeliveryPackage = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
+
+    if (pkg.status !== "DRAFT") {
+      throw new Error(`Paketet kan inte bekräftas från status ${pkg.status}.`);
+    }
+    await assertReferencedMaterialApproved(context.db, pkg);
+
     const recipients = await context.db
       .from("delivery_recipients")
-      .select("full_name,email")
+      .select("full_name,email,coreos_contact_id")
       .eq("package_id", data.id);
+    if (recipients.error) throw new Error(recipients.error.message);
+    if ((recipients.data ?? []).length === 0) throw new Error("Paketet saknar mottagare.");
 
     let coreosLogged = false;
     let coreosError: string | null = null;
@@ -168,6 +291,7 @@ export const confirmDeliveryPackage = createServerFn({ method: "POST" })
         secure_reference: data.secure_reference ?? null,
       })
       .eq("id", data.id)
+      .eq("status", "DRAFT")
       .select("*")
       .single();
     if (upErr) throw new Error(upErr.message);
@@ -181,6 +305,7 @@ export const confirmDeliveryPackage = createServerFn({ method: "POST" })
         recipients: (recipients.data ?? []).map((r) => r.email),
         coreosLogged,
         coreosError,
+        approval_verified_server_side: true,
       },
     );
 
