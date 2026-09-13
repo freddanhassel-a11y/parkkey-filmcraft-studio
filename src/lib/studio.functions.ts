@@ -69,7 +69,7 @@ export const listProjects = createServerFn({ method: "GET" })
 
 export const getProject = createServerFn({ method: "GET" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { id: string }) => d)
+  .validator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
     const supabase = context.db;
     const project = await supabase
@@ -100,7 +100,7 @@ export const getProject = createServerFn({ method: "GET" })
 
 export const createProject = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: Record<string, unknown>) => d)
+  .validator((d: Record<string, unknown>) => d)
   .handler(async ({ data, context }) => {
     const supabase = context.db;
     const brief = briefFromInput(data);
@@ -189,7 +189,7 @@ export const createProject = createServerFn({ method: "POST" })
 
 export const regeneratePrompts = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { projectId: string; versionId: string }) => d)
+  .validator((d: { projectId: string; versionId: string }) => d)
   .handler(async ({ data, context }) => {
     const supabase = context.db;
     const project = await supabase
@@ -218,7 +218,7 @@ export const regeneratePrompts = createServerFn({ method: "POST" })
 
 export const updateProject = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { id: string; patch: Record<string, unknown> }) => d)
+  .validator((d: { id: string; patch: Record<string, unknown> }) => d)
   .handler(async ({ data, context }) => {
     const { error } = await context.db
       .from("film_projects")
@@ -230,7 +230,7 @@ export const updateProject = createServerFn({ method: "POST" })
 
 export const duplicateVersion = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { projectId: string; versionId: string; changelog?: string }) => d)
+  .validator((d: { projectId: string; versionId: string; changelog?: string }) => d)
   .handler(async ({ data, context }) => {
     const supabase = context.db;
     const existing = await supabase
@@ -285,7 +285,7 @@ export const duplicateVersion = createServerFn({ method: "POST" })
 
 export const saveQa = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { qaId: string; items: QaItem[] }) => d)
+  .validator((d: { qaId: string; items: QaItem[] }) => d)
   .handler(async ({ data, context }) => {
     const passed = data.items.every((i) => i.checked);
     const { error } = await context.db
@@ -298,7 +298,7 @@ export const saveQa = createServerFn({ method: "POST" })
 
 export const registerRender = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: {
       renderId: string;
       file_url: string;
@@ -355,7 +355,7 @@ export const listAssets = createServerFn({ method: "GET" })
 
 export const createAsset = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: {
       name: string;
       category: string;
@@ -396,7 +396,7 @@ export const listTemplates = createServerFn({ method: "GET" })
 
 export const createTemplate = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: { name: string; category: string; description?: string | null; body: string }) => d,
   )
   .handler(async ({ data, context }) => {

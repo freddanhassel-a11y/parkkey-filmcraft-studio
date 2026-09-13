@@ -31,7 +31,7 @@ function limitTerm(term: string) {
 
 export const searchCoreos = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { term: string }) => d)
+  .validator((d: { term: string }) => d)
   .handler(async ({ data, context }) => {
     const term = limitTerm(data.term ?? "");
     const like = `%${term}%`;
@@ -132,7 +132,7 @@ export const searchCoreos = createServerFn({ method: "POST" })
 /** Hämtar godkänd/känd kundkontext för ett CoreOS-objekt — inget fritt tabellåtkomst. */
 export const getCoreosContext = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { type: CoreosEntityType; id: string }) => d)
+  .validator((d: { type: CoreosEntityType; id: string }) => d)
   .handler(async ({ data, context }) => {
     let record: CoreosRecord | null = null;
     let contacts: Array<{ id: string; full_name: string | null; email: string | null }> = [];
@@ -235,7 +235,7 @@ export const listMaterialLinks = createServerFn({ method: "GET" })
 
 export const linkCustomerMaterial = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: {
       coreos_type: CoreosEntityType;
       coreos_id: string;
@@ -281,7 +281,7 @@ export const linkCustomerMaterial = createServerFn({ method: "POST" })
  */
 export const exportMaterialToCoreos = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: {
       coreos_type: CoreosEntityType;
       coreos_id: string;

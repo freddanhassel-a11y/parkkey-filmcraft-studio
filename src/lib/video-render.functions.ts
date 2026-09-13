@@ -12,7 +12,7 @@ export type VideoProviderState = {
 
 export const getVideoRenderPipeline = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { project_id: string }) => d)
+  .validator((d: { project_id: string }) => d)
   .handler(async ({ data, context }) => {
     const [project, versions, renders, connection] = await Promise.all([
       context.db
@@ -104,7 +104,7 @@ export const getVideoRenderPipeline = createServerFn({ method: "POST" })
  */
 export const registerRenderedMaster = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: {
       project_id: string;
       version_id?: string | null;

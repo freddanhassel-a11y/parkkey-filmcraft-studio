@@ -19,7 +19,7 @@ export const listIntegrations = createServerFn({ method: "GET" })
  */
 export const verifyIntegration = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { provider: string }) => d)
+  .validator((d: { provider: string }) => d)
   .handler(async ({ data, context }) => {
     const provider = data.provider;
     let status = "NOT CONNECTED";

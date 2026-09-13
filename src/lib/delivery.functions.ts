@@ -110,7 +110,7 @@ export const listDeliveryPackages = createServerFn({ method: "GET" })
 
 export const createDeliveryPackage = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: {
       title: string;
       subject?: string | null;
@@ -217,7 +217,7 @@ export const createDeliveryPackage = createServerFn({ method: "POST" })
 
 export const confirmDeliveryPackage = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { id: string; secure_reference?: string | null }) => d)
+  .validator((d: { id: string; secure_reference?: string | null }) => d)
   .handler(async ({ data, context }) => {
     const { data: pkg, error } = await context.db
       .from("delivery_packages")

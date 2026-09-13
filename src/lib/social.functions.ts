@@ -33,7 +33,7 @@ export const listSocialPosts = createServerFn({ method: "GET" })
 
 export const createSocialPost = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (
       d: SocialBrief & {
         film_project_id?: string | null;
@@ -104,7 +104,7 @@ export const createSocialPost = createServerFn({ method: "POST" })
 
 export const updateSocialPost = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: {
       id: string;
       patch: Partial<{
@@ -153,7 +153,7 @@ export const updateSocialPost = createServerFn({ method: "POST" })
 /** Regenererar det kreativa paketet från briefen utan att röra manuellt redigerad status. */
 export const regenerateSocialCreative = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { id: string }) => d)
+  .validator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
     const { data: post, error } = await context.db
       .from("social_posts")
@@ -205,7 +205,7 @@ const FLOW: Record<string, string[]> = {
 
 export const setSocialPostStatus = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { id: string; status: string }) => d)
+  .validator((d: { id: string; status: string }) => d)
   .handler(async ({ data, context }) => {
     const { data: post, error } = await context.db
       .from("social_posts")
@@ -239,7 +239,7 @@ export const setSocialPostStatus = createServerFn({ method: "POST" })
 
 export const setSocialPostAssets = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { id: string; asset_ids: string[] }) => d)
+  .validator((d: { id: string; asset_ids: string[] }) => d)
   .handler(async ({ data, context }) => {
     await context.db.from("social_post_assets").delete().eq("post_id", data.id);
     if (data.asset_ids.length > 0) {
@@ -271,7 +271,7 @@ export const setSocialPostAssets = createServerFn({ method: "POST" })
  */
 export const scheduleSocialPost = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: { id: string; scheduled_at: string; timezone: string; notes?: string | null }) => d,
   )
   .handler(async ({ data, context }) => {
@@ -325,7 +325,7 @@ export const scheduleSocialPost = createServerFn({ method: "POST" })
 
 export const cancelSchedule = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { schedule_id: string; post_id: string }) => d)
+  .validator((d: { schedule_id: string; post_id: string }) => d)
   .handler(async ({ data, context }) => {
     const { error } = await context.db
       .from("social_schedules")
@@ -352,7 +352,7 @@ export const cancelSchedule = createServerFn({ method: "POST" })
  */
 export const attemptPublish = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { post_id: string; schedule_id?: string | null }) => d)
+  .validator((d: { post_id: string; schedule_id?: string | null }) => d)
   .handler(async ({ data, context }) => {
     const capability = await getLinkedInCapabilityFromCoreos(context.coreos);
     if (!capability.publishCapable) {
@@ -413,7 +413,7 @@ export const attemptPublish = createServerFn({ method: "POST" })
 
 export const duplicateSocialPost = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { id: string }) => d)
+  .validator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
     const { data: post, error } = await context.db
       .from("social_posts")
