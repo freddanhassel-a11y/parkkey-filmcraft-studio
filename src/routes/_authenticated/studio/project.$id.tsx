@@ -4,15 +4,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Copy, Download, RefreshCw, Star } from "lucide-react";
+
 import {
   duplicateVersion,
   getProject,
   regeneratePrompts,
-  listIntegrations,
-  registerRender,
   saveQa,
   updateProject,
 } from "@/lib/studio.functions";
+import {
+  getVideoRenderPipeline,
+  registerRenderedMaster,
+} from "@/lib/video-render.functions";
 import { PROJECT_STATUSES } from "@/lib/parkkey-rules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,39 +38,59 @@ function ProjectPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const fetchProject = useServerFn(getProject);
+  const fetchRenderPipeline = useServerFn(getVideoRenderPipeline);
   const doRegenerate = useServerFn(regeneratePrompts);
   const doDuplicate = useServerFn(duplicateVersion);
   const doUpdate = useServerFn(updateProject);
   const doSaveQa = useServerFn(saveQa);
-  const doRegisterRender = useServerFn(registerRender);
-  const fetchIntegrations = useServerFn(listIntegrations);
-
-  const { data: integrations } = useQuery({
-    queryKey: ["integrations"],
-    queryFn: () => fetchIntegrations({}),
-  });
+  const doRegisterMaster = useServerFn(registerRenderedMaster);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["project", id],
     queryFn: () => fetchProject({ data: { id } }),
   });
 
+  const renderPipeline = useQuery({
+    queryKey: ["video-render-pipeline", id],
+    queryFn: () => fetchRenderPipeline({ data: { project_id: id } }),
+  });
+
   const [versionId, setVersionId] = useState<string | null>(null);
   const [qaItems, setQaItems] = useState<QaItem[]>([]);
   const [fileUrl, setFileUrl] = useState("");
+  const [provider, setProvider] = useState("external-manual");
+  const [renderWidth, setRenderWidth] = useState("1920");
+  const [renderHeight, setRenderHeight] = useState("1080");
+  const [renderFps, setRenderFps] = useState("30");
+  const [renderDuration, setRenderDuration] = useState("35");
+  const [renderCodec, setRenderCodec] = useState("H.264");
 
   const versions = data?.versions ?? [];
   const activeVersionId = versionId ?? versions[versions.length - 1]?.id ?? null;
 
   const qa = (data?.qa ?? []).find((q) => q.version_id === activeVersionId);
-  const render = (data?.renders ?? []).find((r) => r.version_id === activeVersionId);
   const prompts = (data?.prompts ?? []).filter((p) => p.version_id === activeVersionId);
 
   useEffect(() => {
     if (qa) setQaItems((qa.items as unknown as QaItem[]) ?? []);
-  }, [qa?.id, qa?.updated_at]);
+  }, [qa]);
+
+  useEffect(() => {
+    if (!data?.project) return;
+    const [width, height] = String(data.project.resolution ?? "1920x1080")
+      .split(/[x×]/i)
+      .map((value) => Number(value.trim()));
+    if (Number.isFinite(width) && width > 0) setRenderWidth(String(width));
+    if (Number.isFinite(height) && height > 0) setRenderHeight(String(height));
+    if (data.project.fps > 0) setRenderFps(String(data.project.fps));
+    if (data.project.duration_seconds > 0) {
+      setRenderDuration(String(data.project.duration_seconds));
+    }
+  }, [data?.project]);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["project", id] });
+  const invalidateRenderPipeline = () =>
+    qc.invalidateQueries({ queryKey: ["video-render-pipeline", id] });
 
   const regen = useMutation({
     mutationFn: () =>
@@ -86,6 +109,7 @@ function ProjectPage() {
       toast.success(`${res.label} skapad.`);
       setVersionId(res.versionId);
       void invalidate();
+      void invalidateRenderPipeline();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Misslyckades."),
   });
@@ -113,15 +137,29 @@ function ProjectPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Misslyckades."),
   });
 
-  const linkRender = useMutation({
+  const registerMaster = useMutation({
     mutationFn: () =>
-      doRegisterRender({ data: { renderId: render?.id as string, file_url: fileUrl } }),
+      doRegisterMaster({
+        data: {
+          project_id: id,
+          version_id: activeVersionId,
+          provider: provider.trim(),
+          file_url: fileUrl.trim(),
+          duration_seconds: Number(renderDuration),
+          width: Number(renderWidth),
+          height: Number(renderHeight),
+          fps: Number(renderFps),
+          codec: renderCodec.trim() || "H.264",
+        },
+      }),
     onSuccess: () => {
-      toast.success("MP4 registrerad — nedladdning aktiverad.");
+      toast.success("Verifierad MP4-master registrerad.");
       setFileUrl("");
       void invalidate();
+      void invalidateRenderPipeline();
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Misslyckades."),
+    onError: (e) =>
+      toast.error(e instanceof Error ? e.message : "Renderfilen kunde inte verifieras."),
   });
 
   if (isLoading) {
@@ -152,6 +190,8 @@ function ProjectPage() {
 
   const p = data.project;
   const qaPassed = qaItems.length > 0 && qaItems.every((i) => i.checked);
+  const master = renderPipeline.data?.master ?? null;
+  const providerState = renderPipeline.data?.provider;
 
   return (
     <div className="space-y-10">
@@ -328,87 +368,146 @@ function ProjectPage() {
 
       <section className="space-y-4">
         <SectionHeading
-          eyebrow="Export"
+          eyebrow="Production pipeline"
           title="Renderad fil"
-          description="Nedladdning finns bara när en verklig MP4 är registrerad på versionen."
+          description="En MP4 blir RENDERED först när servern har verifierat en verklig, nåbar fil."
         />
-        <div className="surface-glass space-y-4 rounded-xl p-5">
-          <div className="flex flex-wrap items-center gap-3">
-            <StatusBadge status={render?.status ?? "NO FILE"} />
-            <span className="text-sm text-muted-foreground">
-              Leverantör: {render?.provider ?? "manual-upload"}
-            </span>
-          </div>
-
-          {(() => {
-            const renderProviders = (integrations ?? []).filter(
-              (i) => i.provider !== "manual-upload",
-            );
-            const connected = renderProviders.filter((i) => i.status === "CONNECTED");
-            if (connected.length > 0) return null;
-            return (
-              <div className="rounded-lg border border-warning/40 bg-warning/5 p-4">
-                <p className="text-sm font-semibold text-warning">
-                  Ingen automatisk render-provider är ansluten — ingen rendering kan startas
-                  härifrån.
-                </p>
-                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  {renderProviders.map((i) => (
-                    <li key={i.id}>
-                      {i.display_name} — {i.status}
-                      {i.capability ? ` · ${i.capability}` : ""}
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Promptpaketet är export-ready: kopiera eller ladda ner masterprompt, storyboard,
-                  shot list, kontinuitetsbibel, musikbrief, negativlista och export/QA-spec och kör
-                  render externt. Registrera sedan MP4-adressen nedan.
-                </p>
-              </div>
-            );
-          })()}
-
-          {render?.status === "READY" && render.file_url ? (
-            <div className="space-y-2">
-              <Button asChild>
-                <a href={render.file_url} download target="_blank" rel="noreferrer">
-                  <Download aria-hidden="true" />
-                  Ladda ner MP4-master
-                </a>
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                {render.width}×{render.height} · {render.fps} fps · {render.codec ?? "H.264"}
-              </p>
-            </div>
-          ) : (
-            <p className="text-sm font-medium text-warning">
-              Ingen renderad fil ännu. Registrera MP4-filens adress nedan när filmen är renderad.
+        <div className="surface-glass space-y-5 rounded-xl p-5">
+          {renderPipeline.isLoading ? (
+            <p className="text-sm text-muted-foreground" role="status">
+              Verifierar renderpipeline…
             </p>
+          ) : renderPipeline.error ? (
+            <p className="text-sm text-status-error">
+              Renderpipeline kunde inte verifieras: {renderPipeline.error.message}
+            </p>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusBadge status={providerState?.state ?? "NOT CONNECTED"} />
+                <span className="text-sm text-muted-foreground">
+                  Video Renderer · {providerState?.note ?? "Ingen verifierad provider."}
+                </span>
+              </div>
+
+              <ol className="grid gap-2 sm:grid-cols-5" aria-label="Rendersteg">
+                {(renderPipeline.data?.stages ?? []).map((stage) => (
+                  <li
+                    key={stage}
+                    className="rounded-lg border border-border bg-background/50 px-3 py-2 text-xs font-medium"
+                  >
+                    {stage}
+                  </li>
+                ))}
+              </ol>
+
+              {master?.file_url ? (
+                <div className="space-y-2 rounded-lg border border-status-verified/40 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusBadge status="RENDERED" />
+                    <span className="text-xs text-muted-foreground">
+                      {master.width}×{master.height} · {master.fps} fps · {master.codec ?? "H.264"}
+                    </span>
+                  </div>
+                  <Button asChild>
+                    <a href={master.file_url} download target="_blank" rel="noreferrer">
+                      <Download aria-hidden="true" />
+                      Ladda ner MP4-master
+                    </a>
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-warning/40 bg-warning/5 p-4">
+                  <p className="text-sm font-semibold text-warning">No rendered file yet</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Promptpaketet kan användas externt, men Film Studio påstår inte att en film är
+                    renderad förrän en verklig MP4 har verifierats server-side.
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="render-url">MP4-adress (https)</Label>
-            <div className="flex flex-wrap gap-2">
+          <div className="grid gap-4 border-t border-border pt-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="render-url">Verifierbar MP4-adress (https)</Label>
               <Input
                 id="render-url"
-                className="max-w-md"
                 value={fileUrl}
                 onChange={(e) => setFileUrl(e.target.value)}
                 placeholder="https://…/parky-testet-master.mp4"
               />
-              <Button
-                variant="secondary"
-                onClick={() => linkRender.mutate()}
-                disabled={!fileUrl.trim() || !render || linkRender.isPending}
-              >
-                Registrera fil
-              </Button>
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="render-provider">Provider</Label>
+              <Input
+                id="render-provider"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="render-codec">Codec</Label>
+              <Input
+                id="render-codec"
+                value={renderCodec}
+                onChange={(e) => setRenderCodec(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="render-width">Bredd</Label>
+              <Input
+                id="render-width"
+                inputMode="numeric"
+                value={renderWidth}
+                onChange={(e) => setRenderWidth(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="render-height">Höjd</Label>
+              <Input
+                id="render-height"
+                inputMode="numeric"
+                value={renderHeight}
+                onChange={(e) => setRenderHeight(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="render-fps">FPS</Label>
+              <Input
+                id="render-fps"
+                inputMode="numeric"
+                value={renderFps}
+                onChange={(e) => setRenderFps(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="render-duration">Längd (sek)</Label>
+              <Input
+                id="render-duration"
+                inputMode="numeric"
+                value={renderDuration}
+                onChange={(e) => setRenderDuration(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => registerMaster.mutate()}
+              disabled={
+                !fileUrl.trim() ||
+                !provider.trim() ||
+                !qaPassed ||
+                registerMaster.isPending
+              }
+            >
+              {registerMaster.isPending ? "Verifierar MP4…" : "Verifiera och registrera master"}
+            </Button>
             {!qaPassed ? (
               <p className="text-xs text-muted-foreground">
-                QA-grinden är inte helt verifierad — markera exporten som godkänd först när alla
-                punkter är gröna.
+                QA-grinden måste vara helt verifierad innan en master kan registreras från UI.
               </p>
             ) : null}
           </div>
