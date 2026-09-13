@@ -296,40 +296,6 @@ export const saveQa = createServerFn({ method: "POST" })
     return { passed };
   });
 
-export const registerRender = createServerFn({ method: "POST" })
-  .middleware([requireParkkeyAuth])
-  .validator(
-    (d: {
-      renderId: string;
-      file_url: string;
-      duration_seconds?: number | null;
-      width?: number | null;
-      height?: number | null;
-      fps?: number | null;
-    }) => d,
-  )
-  .handler(async ({ data, context }) => {
-    const url = data.file_url.trim();
-    if (!/^https?:\/\//i.test(url))
-      throw new Error("Ange en fullständig https-adress till MP4-filen.");
-    const { error } = await context.db
-      .from("renders")
-      .update({
-        file_url: url,
-        status: "READY",
-        mime_type: "video/mp4",
-        codec: "H.264",
-        duration_seconds: data.duration_seconds ?? null,
-        width: data.width ?? null,
-        height: data.height ?? null,
-        fps: data.fps ?? 30,
-        error_message: null,
-      })
-      .eq("id", data.renderId);
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
-
 export const listLibrary = createServerFn({ method: "GET" })
   .middleware([requireParkkeyAuth])
   .handler(async ({ context }) => {

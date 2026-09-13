@@ -28,7 +28,7 @@ function LibraryPage() {
   const [format, setFormat] = useState("");
   const [tag, setTag] = useState("");
 
-  const projects = data?.projects ?? [];
+  const projects = useMemo(() => data?.projects ?? [], [data?.projects]);
   const renders = data?.renders ?? [];
 
   const filtered = useMemo(
