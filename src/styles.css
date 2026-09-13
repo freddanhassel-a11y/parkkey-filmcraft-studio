@@ -1,0 +1,211 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * ParkKey™ Film Studio design system.
+ * Governed by parkkey-brand-theme + parkkey-design-system.
+ * Forest Green #0F3D2E · Park Green #8CC63E · Pale Cream #F5F5EB · Graphite #1E1E1E
+ * Premium extensions: midnight/navy surfaces, restrained gold warmth, readable glass.
+ * All colors are oklch semantic tokens. Never hardcode colors in components.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+
+  --color-forest: var(--forest);
+  --color-forest-deep: var(--forest-deep);
+  --color-park: var(--park);
+  --color-park-soft: var(--park-soft);
+  --color-cream: var(--cream);
+  --color-graphite: var(--graphite);
+  --color-midnight: var(--midnight);
+  --color-gold: var(--gold);
+  --color-glass: var(--glass);
+  --color-glass-border: var(--glass-border);
+
+  --color-status-verified: var(--status-verified);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
+  --color-status-neutral: var(--status-neutral);
+  --color-status-unknown: var(--status-unknown);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.75rem;
+
+  /* ParkKey brand foundation */
+  --forest: oklch(0.315 0.062 161);
+  --forest-deep: oklch(0.225 0.048 163);
+  --park: oklch(0.79 0.171 128);
+  --park-soft: oklch(0.86 0.11 128);
+  --cream: oklch(0.965 0.011 106);
+  --graphite: oklch(0.24 0 0);
+  --midnight: oklch(0.205 0.031 245);
+  --gold: oklch(0.755 0.114 86);
+
+  /* Cinematic studio surface (default) */
+  --background: oklch(0.185 0.032 168);
+  --foreground: oklch(0.965 0.011 106);
+  --card: oklch(0.243 0.038 166);
+  --card-foreground: oklch(0.965 0.011 106);
+  --popover: oklch(0.225 0.036 167);
+  --popover-foreground: oklch(0.965 0.011 106);
+  --primary: oklch(0.79 0.171 128);
+  --primary-foreground: oklch(0.205 0.046 163);
+  --secondary: oklch(0.288 0.036 166);
+  --secondary-foreground: oklch(0.965 0.011 106);
+  --muted: oklch(0.278 0.03 168);
+  --muted-foreground: oklch(0.79 0.024 150);
+  --accent: oklch(0.315 0.045 164);
+  --accent-foreground: oklch(0.965 0.011 106);
+  --destructive: oklch(0.585 0.201 26);
+  --destructive-foreground: oklch(0.98 0.01 100);
+  --border: oklch(0.965 0.011 106 / 14%);
+  --input: oklch(0.965 0.011 106 / 18%);
+  --ring: oklch(0.79 0.171 128);
+
+  --glass: oklch(0.965 0.011 106 / 7%);
+  --glass-border: oklch(0.965 0.011 106 / 16%);
+
+  --status-verified: oklch(0.79 0.171 128);
+  --status-warning: oklch(0.79 0.13 82);
+  --status-error: oklch(0.63 0.19 26);
+  --status-neutral: oklch(0.72 0.02 160);
+  --status-unknown: oklch(0.6 0.015 250);
+
+  --gradient-cinematic: linear-gradient(
+    155deg,
+    oklch(0.225 0.048 163) 0%,
+    oklch(0.205 0.031 245) 58%,
+    oklch(0.17 0.028 168) 100%
+  );
+  --gradient-park: linear-gradient(100deg, var(--forest) 0%, var(--park) 100%);
+  --gradient-aurora: radial-gradient(
+    60% 70% at 20% 10%,
+    oklch(0.79 0.171 128 / 22%) 0%,
+    transparent 70%
+  );
+  --shadow-cinematic: 0 26px 70px -28px oklch(0.12 0.02 165 / 85%);
+  --shadow-glow: 0 0 0 1px oklch(0.79 0.171 128 / 22%), 0 18px 48px -22px oklch(0.79 0.171 128 / 35%);
+
+  --chart-1: oklch(0.79 0.171 128);
+  --chart-2: oklch(0.62 0.09 190);
+  --chart-3: oklch(0.755 0.114 86);
+  --chart-4: oklch(0.55 0.07 250);
+  --chart-5: oklch(0.72 0.05 150);
+
+  --sidebar: oklch(0.205 0.036 167);
+  --sidebar-foreground: oklch(0.965 0.011 106);
+  --sidebar-primary: oklch(0.79 0.171 128);
+  --sidebar-primary-foreground: oklch(0.205 0.046 163);
+  --sidebar-accent: oklch(0.278 0.036 166);
+  --sidebar-accent-foreground: oklch(0.965 0.011 106);
+  --sidebar-border: oklch(0.965 0.011 106 / 12%);
+  --sidebar-ring: oklch(0.79 0.171 128);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    background-image: var(--gradient-aurora);
+    background-repeat: no-repeat;
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-park);
+    outline-offset: 2px;
+  }
+}
+
+@utility surface-glass {
+  background-color: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(14px);
+}
+
+@utility surface-cinematic {
+  background-image: var(--gradient-cinematic);
+  box-shadow: var(--shadow-cinematic);
+}
+
+@utility text-gradient-park {
+  background-image: var(--gradient-park);
+  background-clip: text;
+  color: transparent;
+}
+
+@utility glow-park {
+  box-shadow: var(--shadow-glow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

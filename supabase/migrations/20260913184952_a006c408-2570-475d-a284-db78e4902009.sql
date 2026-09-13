@@ -1,0 +1,25 @@
+REVOKE ALL ON public.media_assets FROM anon, authenticated;
+REVOKE ALL ON public.media_versions FROM anon, authenticated;
+REVOKE ALL ON public.customer_material_links FROM anon, authenticated;
+REVOKE ALL ON public.coreos_material_links FROM anon, authenticated;
+REVOKE ALL ON public.social_posts FROM anon, authenticated;
+REVOKE ALL ON public.social_post_assets FROM anon, authenticated;
+REVOKE ALL ON public.social_schedules FROM anon, authenticated;
+REVOKE ALL ON public.publish_attempts FROM anon, authenticated;
+REVOKE ALL ON public.delivery_packages FROM anon, authenticated;
+REVOKE ALL ON public.delivery_recipients FROM anon, authenticated;
+REVOKE ALL ON public.integration_connections FROM anon, authenticated;
+REVOKE ALL ON public.audit_events FROM anon, authenticated;
+
+GRANT ALL ON public.media_assets TO service_role;
+GRANT ALL ON public.media_versions TO service_role;
+GRANT ALL ON public.customer_material_links TO service_role;
+GRANT ALL ON public.coreos_material_links TO service_role;
+GRANT ALL ON public.social_posts TO service_role;
+GRANT ALL ON public.social_post_assets TO service_role;
+GRANT ALL ON public.social_schedules TO service_role;
+GRANT ALL ON public.publish_attempts TO service_role;
+GRANT ALL ON public.delivery_packages TO service_role;
+GRANT ALL ON public.delivery_recipients TO service_role;
+GRANT ALL ON public.integration_connections TO service_role;
+GRANT ALL ON public.audit_events TO service_role;
