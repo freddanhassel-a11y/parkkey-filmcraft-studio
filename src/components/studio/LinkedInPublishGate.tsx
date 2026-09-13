@@ -24,7 +24,10 @@ export function LinkedInPublishGate(props: {
     <div className="w-full rounded-lg border border-border bg-background/45 p-3">
       <div className="flex items-start gap-2">
         {mediaBlocked ? (
-          <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-status-unknown" />
+          <TriangleAlert
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 text-status-unknown"
+          />
         ) : (
           <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-primary" />
         )}
@@ -67,16 +70,20 @@ export function LinkedInPublishGate(props: {
               confirmed: true,
               language: "sv",
             },
-          }).then(
-            (result) => {
-              if (result.published) toast.success(result.message);
-              else toast.error(result.message);
-              setConfirmed(false);
-              props.onResult();
-            },
-            (error: unknown) =>
-              toast.error(error instanceof Error ? error.message : "LinkedIn-publiceringen misslyckades."),
-          ).finally(() => setPublishing(false));
+          })
+            .then(
+              (result) => {
+                if (result.published) toast.success(result.message);
+                else toast.error(result.message);
+                setConfirmed(false);
+                props.onResult();
+              },
+              (error: unknown) =>
+                toast.error(
+                  error instanceof Error ? error.message : "LinkedIn-publiceringen misslyckades.",
+                ),
+            )
+            .finally(() => setPublishing(false));
         }}
       >
         <Send aria-hidden="true" />

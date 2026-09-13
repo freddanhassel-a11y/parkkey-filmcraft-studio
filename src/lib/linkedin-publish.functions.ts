@@ -79,8 +79,7 @@ export const publishConfirmedLinkedInPost = createServerFn({ method: "POST" })
       });
       return {
         published: false,
-        message:
-          "LinkedIn är inte komplett verifierat för extern publicering. Inget publicerades.",
+        message: "LinkedIn är inte komplett verifierat för extern publicering. Inget publicerades.",
       };
     }
 
