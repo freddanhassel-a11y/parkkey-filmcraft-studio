@@ -5,7 +5,9 @@ type LinkedInPublishResult = {
 
 export type LinkedInRuntimeReadiness = {
   configured: boolean;
+  oauthAppConfigured: boolean;
   apiVersion: string;
+  missingEnvironment: string[];
   note: string;
 };
 
@@ -31,12 +33,27 @@ function redactProviderText(value: string): string {
 
 export function getLinkedInRuntimeReadiness(): LinkedInRuntimeReadiness {
   const token = env("LINKEDIN_ACCESS_TOKEN");
+  const clientId = env("LINKEDIN_CLIENT_ID");
+  const clientSecret = env("LINKEDIN_CLIENT_SECRET");
+  const redirectUri = env("LINKEDIN_REDIRECT_URI");
+  const missingEnvironment = [
+    ...(!clientId ? ["LINKEDIN_CLIENT_ID"] : []),
+    ...(!clientSecret ? ["LINKEDIN_CLIENT_SECRET"] : []),
+    ...(!redirectUri ? ["LINKEDIN_REDIRECT_URI"] : []),
+    ...(!token ? ["LINKEDIN_ACCESS_TOKEN"] : []),
+  ];
+  const oauthAppConfigured = Boolean(clientId && clientSecret && redirectUri);
+
   return {
     configured: Boolean(token),
+    oauthAppConfigured,
     apiVersion: apiVersion(),
+    missingEnvironment,
     note: token
       ? "Server-side LinkedIn Posts API transport is configured. CONNECTED still requires verified CoreOS capability and a real provider response."
-      : "LINKEDIN_ACCESS_TOKEN is not configured in the production runtime. OAuth consent/setup is still required.",
+      : oauthAppConfigured
+        ? "LinkedIn OAuth-appens serverinställningar finns, men LINKEDIN_ACCESS_TOKEN saknas. Slutför LinkedIns member-consent och lagra token server-side innan publicering aktiveras."
+        : `LinkedIn OAuth är inte färdigkonfigurerat server-side. Saknas: ${missingEnvironment.join(", ")}.`,
   };
 }
 
