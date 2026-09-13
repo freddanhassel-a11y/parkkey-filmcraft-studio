@@ -9,7 +9,7 @@ const SUPPORTED_FORMATS = new Set(["1:1", "4:5", "16:9", "9:16"]);
 
 export const rescheduleSocialSchedule = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { schedule_id: string; scheduled_at: string; timezone?: string | null }) => d)
+  .validator((d: { schedule_id: string; scheduled_at: string; timezone?: string | null }) => d)
   .handler(async ({ data, context }) => {
     const when = new Date(data.scheduled_at);
     if (Number.isNaN(when.getTime())) throw new Error("Ogiltig schematid.");
@@ -56,7 +56,7 @@ export const rescheduleSocialSchedule = createServerFn({ method: "POST" })
 
 export const duplicateSocialPostForFormat = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { post_id: string; aspect_ratio: string }) => d)
+  .validator((d: { post_id: string; aspect_ratio: string }) => d)
   .handler(async ({ data, context }) => {
     if (!SUPPORTED_FORMATS.has(data.aspect_ratio)) throw new Error("Formatet stöds inte.");
 

@@ -102,7 +102,7 @@ export const listArchivedMedia = createServerFn({ method: "GET" })
  */
 export const createUploadTarget = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { fileName: string; mimeType: string; size: number }) => d)
+  .validator((d: { fileName: string; mimeType: string; size: number }) => d)
   .handler(async ({ data, context }) => {
     const kind = validateFile(data.mimeType, Number(data.size));
     const path = `${new Date().getFullYear()}/${crypto.randomUUID()}-${safeName(data.fileName)}`;
@@ -115,7 +115,7 @@ export const createUploadTarget = createServerFn({ method: "POST" })
 
 export const registerMediaAsset = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: {
       name: string;
       storage_path: string;
@@ -190,7 +190,7 @@ export const registerMediaAsset = createServerFn({ method: "POST" })
 
 export const addMediaVersion = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: {
       asset_id: string;
       storage_path: string;
@@ -253,7 +253,7 @@ export const addMediaVersion = createServerFn({ method: "POST" })
 
 export const updateMediaAsset = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator(
+  .validator(
     (d: {
       id: string;
       name?: string;
@@ -298,7 +298,7 @@ export const updateMediaAsset = createServerFn({ method: "POST" })
 
 export const archiveMediaAsset = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { id: string; restore?: boolean }) => d)
+  .validator((d: { id: string; restore?: boolean }) => d)
   .handler(async ({ data, context }) => {
     const { error } = await context.db
       .from("media_assets")
@@ -320,7 +320,7 @@ export const archiveMediaAsset = createServerFn({ method: "POST" })
 /** Signerad, tidsbegränsad länk för förhandsvisning eller nedladdning. Inga publika filer. */
 export const getMediaLink = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
-  .inputValidator((d: { path: string; download?: boolean; expiresIn?: number }) => d)
+  .validator((d: { path: string; download?: boolean; expiresIn?: number }) => d)
   .handler(async ({ data, context }) => {
     const expiresIn = Math.min(Math.max(Number(data.expiresIn ?? 900), 60), 60 * 60 * 24 * 7);
     const { data: signed, error } = await context.db.storage
