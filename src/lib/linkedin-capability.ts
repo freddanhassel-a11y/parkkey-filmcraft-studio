@@ -66,7 +66,8 @@ export async function getLinkedInCapabilityFromCoreos(
     .limit(10);
 
   if (result.error) {
-    const denied = result.error.code === "42501" || /permission|policy|rls/i.test(result.error.message);
+    const denied =
+      result.error.code === "42501" || /permission|policy|rls/i.test(result.error.message);
     return {
       ...disconnected(
         denied
@@ -78,9 +79,11 @@ export async function getLinkedInCapabilityFromCoreos(
   }
 
   const rows = (result.data ?? []) as IntegrationAccount[];
-  if (rows.length === 0) return disconnected("Ingen LinkedIn-integration finns registrerad i CoreOS.");
+  if (rows.length === 0)
+    return disconnected("Ingen LinkedIn-integration finns registrerad i CoreOS.");
 
-  const row = rows.find((candidate) => candidate.status.toLowerCase() === "connected") ?? rows[0];
+  const row =
+    rows.find((candidate) => candidate.status.toLowerCase() === "connected") ?? rows[0];
   if (!row) return disconnected("Ingen LinkedIn-integration finns registrerad i CoreOS.");
 
   const grantedScopes = row.granted_scopes ?? [];
@@ -104,10 +107,12 @@ export async function getLinkedInCapabilityFromCoreos(
     note = row.last_error ?? row.notes ?? `CoreOS-status: ${row.status}`;
   } else if (verifiedConnection && publishingIntent) {
     state = "CONNECTED";
-    note = "CoreOS har verifierat kontoidentitet, preflight och beviljade scopes för en publiceringsavsedd LinkedIn-integration.";
+    note =
+      "CoreOS har verifierat kontoidentitet, preflight och beviljade scopes för en publiceringsavsedd LinkedIn-integration.";
   } else if (verifiedConnection) {
     state = "MANUAL CHECK";
-    note = "LinkedIn-kontot är verifierat i CoreOS, men integrationssyftet är inte uttryckligen publicering/socialt flöde.";
+    note =
+      "LinkedIn-kontot är verifierat i CoreOS, men integrationssyftet är inte uttryckligen publicering/socialt flöde.";
   } else if (row.status.toLowerCase() !== "setup_required") {
     state = "MANUAL CHECK";
     note = row.last_error ?? row.notes ?? "LinkedIn-integrationen kräver verifiering i CoreOS.";
