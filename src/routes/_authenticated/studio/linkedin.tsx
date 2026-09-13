@@ -111,9 +111,7 @@ function LinkedInPage() {
           {capability.data?.displayName ? (
             <p className="text-xs text-muted-foreground">
               {capability.data.displayName}
-              {capability.data.observedPrincipal
-                ? ` · ${capability.data.observedPrincipal}`
-                : ""}
+              {capability.data.observedPrincipal ? ` · ${capability.data.observedPrincipal}` : ""}
               {capability.data.purpose ? ` · syfte: ${capability.data.purpose}` : ""}
             </p>
           ) : null}
@@ -124,13 +122,14 @@ function LinkedInPage() {
           ) : null}
           {connected ? (
             <p className="text-xs text-muted-foreground">
-              CoreOS har verifierat kontot och publiceringsavsedd kapacitet. Film Studio markerar ändå aldrig
-              något som PUBLISHED förrän publiceringsadaptern har ett verkligt post-ID/URL från LinkedIn.
+              CoreOS har verifierat kontot och publiceringsavsedd kapacitet. Film Studio markerar
+              ändå aldrig något som PUBLISHED förrän publiceringsadaptern har ett verkligt
+              post-ID/URL från LinkedIn.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Schemaläggning fungerar som intern kö med status SCHEDULED — CONNECTION REQUIRED. Inget
-              publiceras externt.
+              Schemaläggning fungerar som intern kö med status SCHEDULED — CONNECTION REQUIRED.
+              Inget publiceras externt.
             </p>
           )}
         </div>

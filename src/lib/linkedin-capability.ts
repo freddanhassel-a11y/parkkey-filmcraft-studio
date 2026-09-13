@@ -82,8 +82,7 @@ export async function getLinkedInCapabilityFromCoreos(
   if (rows.length === 0)
     return disconnected("Ingen LinkedIn-integration finns registrerad i CoreOS.");
 
-  const row =
-    rows.find((candidate) => candidate.status.toLowerCase() === "connected") ?? rows[0];
+  const row = rows.find((candidate) => candidate.status.toLowerCase() === "connected") ?? rows[0];
   if (!row) return disconnected("Ingen LinkedIn-integration finns registrerad i CoreOS.");
 
   const grantedScopes = row.granted_scopes ?? [];

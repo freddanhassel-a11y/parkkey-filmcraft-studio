@@ -12,10 +12,7 @@ import {
   saveQa,
   updateProject,
 } from "@/lib/studio.functions";
-import {
-  getVideoRenderPipeline,
-  registerRenderedMaster,
-} from "@/lib/video-render.functions";
+import { getVideoRenderPipeline, registerRenderedMaster } from "@/lib/video-render.functions";
 import { PROJECT_STATUSES } from "@/lib/parkkey-rules";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -497,10 +494,7 @@ function ProjectPage() {
               variant="secondary"
               onClick={() => registerMaster.mutate()}
               disabled={
-                !fileUrl.trim() ||
-                !provider.trim() ||
-                !qaPassed ||
-                registerMaster.isPending
+                !fileUrl.trim() || !provider.trim() || !qaPassed || registerMaster.isPending
               }
             >
               {registerMaster.isPending ? "Verifierar MP4…" : "Verifiera och registrera master"}
