@@ -230,9 +230,7 @@ function Dashboard() {
                     </a>
                   </Button>
                 ) : (
-                  <span className="text-xs text-muted-foreground">
-                    No rendered file yet
-                  </span>
+                  <span className="text-xs text-muted-foreground">No rendered file yet</span>
                 )}
               </li>
             ))}
