@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/film-studio-production-phase-2-v2
+      - feat/phase-2-production-workflow
   pull_request:
     branches:
       - main
