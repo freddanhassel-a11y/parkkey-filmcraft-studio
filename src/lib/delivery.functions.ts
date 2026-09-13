@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 import { logAudit } from "./audit";
 
 /**
@@ -12,7 +14,7 @@ import { logAudit } from "./audit";
 const APPROVED_DELIVERY_STATES = new Set(["APPROVED", "EXPORTED"]);
 
 async function assertReferencedMaterialApproved(
-  db: Parameters<typeof logAudit>[0],
+  db: SupabaseClient<Database>,
   refs: {
     film_project_id?: string | null;
     film_version_id?: string | null;
