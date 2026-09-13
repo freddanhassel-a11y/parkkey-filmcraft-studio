@@ -1,0 +1,72 @@
+name: Import Lovable source
+
+on:
+  push:
+    branches:
+      - feat/film-studio-production-phase-2-v2
+    paths:
+      - '.github/workflows/import-lovable-source.yml'
+      - 'ParkKey Film Studio.zip'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/film-studio-production-phase-2-v2
+          fetch-depth: 0
+
+      - name: Extract Lovable export safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/filmstudio-import
+          mkdir -p /tmp/filmstudio-import
+          unzip -q 'ParkKey Film Studio.zip' -d /tmp/filmstudio-import
+
+          ROOT='/tmp/filmstudio-import'
+          FIRST="$(find "$ROOT" -mindepth 1 -maxdepth 1 -type d | head -n 1 || true)"
+          FILES_AT_ROOT="$(find "$ROOT" -mindepth 1 -maxdepth 1 -type f | wc -l | tr -d ' ')"
+          DIRS_AT_ROOT="$(find "$ROOT" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+          if [ "$DIRS_AT_ROOT" = '1' ] && [ "$FILES_AT_ROOT" = '0' ] && [ -n "$FIRST" ]; then
+            ROOT="$FIRST"
+          fi
+
+          rsync -a --delete-excluded \
+            --exclude '.git/' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude 'node_modules/' \
+            --exclude 'dist/' \
+            --exclude '.output/' \
+            --exclude '.vinxi/' \
+            --exclude '.wrangler/' \
+            "$ROOT"/ ./
+
+          rm -f .env .env.*
+          rm -f 'ParkKey Film Studio.zip'
+
+          if git grep -n -I -E '(service_role|SUPABASE_SERVICE_ROLE|sk-[A-Za-z0-9_-]{20,}|BEGIN PRIVATE KEY)' -- . ':!README.md' ':!*.lock' ':!bun.lock' 2>/dev/null; then
+            echo 'Potential secret material found. Refusing to commit.' >&2
+            exit 1
+          fi
+
+      - name: Commit imported source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet && [ -z "$(git status --porcelain)" ]; then
+            echo 'No import changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'chore: import complete Lovable Film Studio source'
+          git push origin HEAD:feat/film-studio-production-phase-2-v2
