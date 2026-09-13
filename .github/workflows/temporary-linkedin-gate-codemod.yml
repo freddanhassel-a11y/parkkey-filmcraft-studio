@@ -22,43 +22,49 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+
           path = Path('src/routes/_authenticated/studio/linkedin.tsx')
           text = path.read_text()
-          text = text.replace('import { CalendarClock, Copy, Linkedin, Send, TriangleAlert } from "lucide-react";', 'import { CalendarClock, Copy, Linkedin, TriangleAlert } from "lucide-react";', 1)
+          marker = 'Verifiera publiceringsförsök'
+          if text.count(marker) != 1:
+              raise SystemExit(f'Expected exactly one publish marker, got {text.count(marker)}')
+
+          text = text.replace(
+              'import { CalendarClock, Copy, Linkedin, Send, TriangleAlert } from "lucide-react";',
+              'import { CalendarClock, Copy, Linkedin, TriangleAlert } from "lucide-react";',
+              1,
+          )
           text = text.replace('  attemptPublish,\n', '', 1)
-          text = text.replace('import { SectionHeading } from "@/components/studio/brand";\n', 'import { SectionHeading } from "@/components/studio/brand";\nimport { LinkedInPublishGate } from "@/components/studio/LinkedInPublishGate";\n', 1)
+          if 'LinkedInPublishGate' not in text:
+              text = text.replace(
+                  'import { SectionHeading } from "@/components/studio/brand";\n',
+                  'import { SectionHeading } from "@/components/studio/brand";\nimport { LinkedInPublishGate } from "@/components/studio/LinkedInPublishGate";\n',
+                  1,
+              )
           text = text.replace('  const publish = useServerFn(attemptPublish);\n', '', 1)
-          old = '''                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      void publish({ data: { post_id: selected.id } }).then(
-                        (res) => {
-                          toast.message(res.message);
-                          void capability.refetch();
-                          invalidate();
-                        },
-                        (err: unknown) =>
-                          toast.error(
-                            err instanceof Error ? err.message : "Försöket misslyckades.",
-                          ),
-                      )
-                    }
-                  >
-                    <Send aria-hidden="true" />
-                    Verifiera publiceringsförsök
-                  </Button>'''
-          new = '''                  <LinkedInPublishGate
-                    postId={selected.id}
-                    status={selected.status}
-                    attachedCount={attachedIds.length}
-                    onResult={() => {
-                      void capability.refetch();
-                      invalidate();
-                    }}
-                  />'''
-          if old not in text:
-              raise SystemExit('Expected legacy publish button not found; refusing broad edit')
-          text = text.replace(old, new, 1)
+
+          marker_pos = text.index(marker)
+          start = text.rfind('<Button', 0, marker_pos)
+          end_start = text.find('</Button>', marker_pos)
+          if start == -1 or end_start == -1:
+              raise SystemExit('Could not isolate legacy publish button')
+          end = end_start + len('</Button>')
+          old_block = text[start:end]
+          if 'publish({ data: { post_id: selected.id } })' not in old_block:
+              raise SystemExit('Marker belongs to an unexpected button; refusing edit')
+
+          indent_start = text.rfind('\n', 0, start) + 1
+          indent = text[indent_start:start]
+          replacement = f'''<LinkedInPublishGate
+          {{indent}}  postId={{selected.id}}
+          {{indent}}  status={{selected.status}}
+          {{indent}}  attachedCount={{attachedIds.length}}
+          {{indent}}  onResult={{() => {{
+          {{indent}}    void capability.refetch();
+          {{indent}}    invalidate();
+          {{indent}}  }}}}
+          {{indent}}/>'''.replace('{indent}', indent)
+          text = text[:start] + replacement + text[end:]
           path.write_text(text)
           PY
       - name: Commit exact codemod
