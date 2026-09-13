@@ -1,26 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
-import type { Database } from "@/integrations/supabase/types";
 import { logAudit } from "./audit";
+import { getLinkedInCapabilityFromCoreos } from "./linkedin-capability";
 import { cropPresetsFor } from "./social-engine";
 
 const SUPPORTED_FORMATS = new Set(["1:1", "4:5", "16:9", "9:16"]);
-
-async function linkedinSchedulingState(
-  db: SupabaseClient<Database>,
-): Promise<"SCHEDULED" | "SCHEDULED — CONNECTION REQUIRED"> {
-  const { data, error } = await db
-    .from("integration_connections")
-    .select("status,verified_at")
-    .eq("provider", "linkedin")
-    .maybeSingle();
-  if (error || data?.status !== "CONNECTED" || !data.verified_at) {
-    return "SCHEDULED — CONNECTION REQUIRED";
-  }
-  return "SCHEDULED";
-}
 
 export const rescheduleSocialSchedule = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
@@ -39,7 +24,8 @@ export const rescheduleSocialSchedule = createServerFn({ method: "POST" })
     if (!current) throw new Error("Schemaposten finns inte.");
     if (current.status === "CANCELLED") throw new Error("Ett avbrutet schema måste skapas om.");
 
-    const status = await linkedinSchedulingState(context.db);
+    const capability = await getLinkedInCapabilityFromCoreos(context.coreos);
+    const status = capability.publishCapable ? "SCHEDULED" : "SCHEDULED — CONNECTION REQUIRED";
     const timezone = data.timezone?.trim() || current.timezone || "Europe/Stockholm";
     const { data: row, error: updateError } = await context.db
       .from("social_schedules")
@@ -61,10 +47,11 @@ export const rescheduleSocialSchedule = createServerFn({ method: "POST" })
         to: row.scheduled_at,
         timezone,
         status,
+        linkedin_capability: capability.state,
       },
     );
 
-    return { schedule: row, status };
+    return { schedule: row, status, capability };
   });
 
 export const duplicateSocialPostForFormat = createServerFn({ method: "POST" })
