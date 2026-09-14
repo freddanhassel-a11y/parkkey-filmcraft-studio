@@ -126,8 +126,7 @@ function applyVideoSecurityEvidence(item: ProductionReadinessItem): ProductionRe
   return {
     ...item,
     state: "MANUAL CHECK",
-    note:
-      "Videorenderaren är verifierad, men VIDEO_RENDER_ALLOWED_HOSTS saknas. Externa renderfiler blockeras fail-closed tills en server-side hostlista är konfigurerad.",
+    note: "Videorenderaren är verifierad, men VIDEO_RENDER_ALLOWED_HOSTS saknas. Externa renderfiler blockeras fail-closed tills en server-side hostlista är konfigurerad.",
   };
 }
 
