@@ -1,0 +1,107 @@
+name: Deploy Film Studio Worker
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: filmstudio-worker-production
+  cancel-in-progress: true
+
+env:
+  WORKERS_URL: https://parkkey-filmcraft-studio.parkkey-coreos-nordic-2026.workers.dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Film Studio main
+        uses: actions/checkout@v7
+
+      - name: Record source revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "FILM_STUDIO_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "Deploying Film Studio source $(git rev-parse HEAD)"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build Film Studio for Cloudflare
+        env:
+          VITE_SUPABASE_URL: https://xoabfpxdqqlutxwjgqii.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Y1afZYB-ULMMdB_5y-21Aw_LYQxqFxl
+          VITE_FILM_STUDIO_SHA: ${{ env.FILM_STUDIO_SHA }}
+          SUPABASE_URL: https://xoabfpxdqqlutxwjgqii.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_Y1afZYB-ULMMdB_5y-21Aw_LYQxqFxl
+        run: bun run build
+
+      - name: Verify Cloudflare build output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .output/server/index.mjs
+          test -f .output/server/wrangler.json
+          test -d .output/public
+          grep -R -Fq "${FILM_STUDIO_SHA}" .output/public || {
+            echo '::error::Build did not embed the Film Studio source SHA'
+            exit 1
+          }
+          tmp="$(mktemp)"
+          jq '.workers_dev = true | .routes = []' .output/server/wrangler.json > "$tmp"
+          mv "$tmp" .output/server/wrangler.json
+
+      - name: Cloudflare credentials preflight
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || { echo '::error::Missing CLOUDFLARE_API_TOKEN in parkkey-filmcraft-studio'; exit 1; }
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || { echo '::error::Missing CLOUDFLARE_ACCOUNT_ID in parkkey-filmcraft-studio'; exit 1; }
+
+      - name: Deploy production Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: >-
+          npx --yes wrangler@latest deploy
+          --config .output/server/wrangler.json
+          --name parkkey-filmcraft-studio
+          --var SUPABASE_URL:https://xoabfpxdqqlutxwjgqii.supabase.co
+          --var SUPABASE_PUBLISHABLE_KEY:sb_publishable_Y1afZYB-ULMMdB_5y-21Aw_LYQxqFxl
+          --var FILM_STUDIO_SHA:${FILM_STUDIO_SHA}
+          --var 'VIDEO_RENDER_ALLOWED_HOSTS:replicate.delivery,*.replicate.delivery'
+          --var REPLICATE_VIDEO_MODEL:google/veo-2
+          --var LINKEDIN_API_VERSION:202608
+
+      - name: E2E smoke production Worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in /auth /studio /studio/media /studio/linkedin /studio/integrations; do
+            ok=0
+            for attempt in $(seq 1 12); do
+              status="$(curl --silent --show-error --max-redirs 0 --output /dev/null --write-out '%{http_code}' "${WORKERS_URL}${path}" || true)"
+              echo "${WORKERS_URL}${path} -> HTTP ${status} (attempt ${attempt})"
+              if [[ "$status" =~ ^(200|301|302|303|307|308)$ ]]; then
+                ok=1
+                break
+              fi
+              sleep 5
+            done
+            [[ "$ok" == "1" ]] || { echo "::error::Production smoke failed for ${path}"; exit 1; }
+          done
+          echo "Film Studio ${FILM_STUDIO_SHA} is live for CoreOS at ${WORKERS_URL}/studio"
