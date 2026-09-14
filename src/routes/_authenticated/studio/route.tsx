@@ -5,6 +5,7 @@ import {
   Clapperboard,
   Handshake,
   Image as ImageIcon,
+  Inbox,
   LayoutDashboard,
   LibraryBig,
   Linkedin,
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/_authenticated/studio")({
 
 const NAV = [
   { to: "/studio", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/studio/intake", label: "Visuell inkorg", icon: Inbox, exact: false },
   { to: "/studio/library", label: "Filmer", icon: Clapperboard, exact: false },
   { to: "/studio/new", label: "Ny film", icon: Plus, exact: false },
   { to: "/studio/social", label: "Social Creative", icon: ImageIcon, exact: false },
