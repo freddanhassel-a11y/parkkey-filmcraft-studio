@@ -1,0 +1,75 @@
+name: Film Studio Distribution Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  distribution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Security source preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! git grep -nE '(sb_service_role_|SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|linkedin.*(access_token|client_secret)[[:space:]]*=)' -- ':!bun.lock' ':!*.md'
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Production build
+        env:
+          VITE_SUPABASE_URL: https://xoabfpxdqqlutxwjgqii.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Y1afZYB-ULMMdB_5y-21Aw_LYQxqFxl
+          SUPABASE_URL: https://xoabfpxdqqlutxwjgqii.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_Y1afZYB-ULMMdB_5y-21Aw_LYQxqFxl
+        run: bun run build
+
+      - name: Verify distribution output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .output/server/index.mjs
+          test -f .output/server/wrangler.json
+          test -d .output/public
+
+      - name: Package CoreOS distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist-package
+          cp -R .output dist-package/.output
+          cp package.json bun.lock README.md COREOS_INSTALL.md dist-package/
+          printf '%s\n' "SOURCE_SHA=${GITHUB_SHA}" > dist-package/BUILD_INFO.txt
+          printf '%s\n' "BUILT_AT_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> dist-package/BUILD_INFO.txt
+          tar -C dist-package -czf "parkkey-film-studio-${GITHUB_SHA}.tar.gz" .
+          sha256sum "parkkey-film-studio-${GITHUB_SHA}.tar.gz" > "parkkey-film-studio-${GITHUB_SHA}.sha256"
+
+      - name: Upload verified distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: parkkey-film-studio-${{ github.sha }}
+          path: |
+            parkkey-film-studio-${{ github.sha }}.tar.gz
+            parkkey-film-studio-${{ github.sha }}.sha256
+          retention-days: 30
+          if-no-files-found: error
