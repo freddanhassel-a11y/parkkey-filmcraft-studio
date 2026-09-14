@@ -1,24 +1,23 @@
-import { useEffect, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, Film, ListChecks, Sparkles } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { StudioWordmark } from "@/components/studio/brand";
+
+const COREOS_FILM_STUDIO_URL = "https://parkkey-coreos.lovable.app/film-studio";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "ParkKey™ Film Studio — produktion av ParkKey-reklamfilm" },
+      { title: "ParkKey™ Film Studio — via CoreOS™" },
       {
         name: "description",
         content:
-          "Studion där ParkKey™-reklamfilmer planeras, promptas, versionshanteras, QA-granskas och exporteras enligt ParkKeys egna regler.",
+          "ParkKey™ Film Studio öppnas från CoreOS™ så kundkontext, behörighet, material och uppföljning hålls i samma operativa sanning.",
       },
-      { property: "og:title", content: "ParkKey™ Film Studio" },
+      { property: "og:title", content: "ParkKey™ Film Studio — via CoreOS™" },
       {
         property: "og:description",
-        content:
-          "Brief, promptmotor, filmbibliotek, kontinuitet, QA-grind och exportpresets för ParkKey-kampanjfilm.",
+        content: "Starta Film Studio från CoreOS™ — ett kundregister, ett mediabibliotek och samma ParkKey-identitet.",
       },
     ],
   }),
@@ -26,40 +25,34 @@ export const Route = createFileRoute("/")({
 });
 
 function Landing() {
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    void supabase.auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session)));
-  }, []);
-
   return (
     <main className="surface-cinematic min-h-screen">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <StudioWordmark className="text-base" />
         <Button asChild variant="secondary" size="sm">
-          <Link to={signedIn ? "/studio" : "/auth"}>{signedIn ? "Öppna studion" : "Logga in"}</Link>
+          <a href={COREOS_FILM_STUDIO_URL}>Öppna via CoreOS</a>
         </Button>
       </header>
 
       <section className="mx-auto max-w-6xl px-6 pb-20 pt-10 sm:pt-16">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">
-          Intern produktionsstudio
+          Intern produktionsstudio · CoreOS är ingången
         </p>
         <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-[1.05] text-foreground sm:text-6xl">
-          Reklamfilm som känns <span className="text-gradient-park">ParkKey</span> — varje ruta,
-          varje beat.
+          Reklamfilm som känns <span className="text-gradient-park">ParkKey</span> — med CoreOS som nav.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          Planera kampanjfilmen, låt studion väva in ParkKeys egna regler i masterprompt, storyboard
-          och kontinuitetsbibel — och släpp inget vidare förrän QA-grinden är passerad.
+          Film Studio och CoreOS använder samma ParkKey-identitet och samma backend. Starta arbetet i
+          CoreOS för att behålla kundkontext, brief, material, sanningsstatus och uppföljning i ett
+          sammanhängande flöde.
         </p>
 
         <div className="mt-9 flex flex-wrap gap-3">
           <Button asChild size="lg">
-            <Link to={signedIn ? "/studio" : "/auth"}>
-              {signedIn ? "Till dashboarden" : "Logga in i studion"}
+            <a href={COREOS_FILM_STUDIO_URL}>
+              Gå till Film Studio via CoreOS
               <ArrowRight aria-hidden="true" />
-            </Link>
+            </a>
           </Button>
         </div>
 
@@ -67,18 +60,18 @@ function Landing() {
           {[
             {
               icon: Sparkles,
-              term: "Promptmotor",
-              desc: "Brief in — masterprompt, storyboard, shot list, kontinuitet, musik och negativlista ut.",
+              term: "Brief från CoreOS",
+              desc: "Starta med rätt kund och mål — sedan följer kontexten med in i Film Studio.",
             },
             {
               icon: Film,
-              term: "Filmbibliotek",
-              desc: "Versioner, ändringslogg, format och sanna nedladdningstillstånd per render.",
+              term: "Ett mediabibliotek",
+              desc: "Film Studio och CoreOS visar samma media_assets och film_projects utan parallella kopior.",
             },
             {
               icon: ListChecks,
-              term: "QA-grind",
-              desc: "Logotyp, kanonisk Parky, verklig UI-text, rörelse, ljudreglage och säkra marginaler.",
+              term: "QA och publicering",
+              desc: "QA, godkännande och externa publiceringsgrindar finns kvar innan något lämnar ParkKey.",
             },
           ].map((item) => (
             <div key={item.term} className="surface-glass rounded-xl p-5">
@@ -90,7 +83,7 @@ function Landing() {
         </dl>
 
         <p className="mt-14 text-sm text-muted-foreground">
-          ParkKey™ är systemet. Parky™ ger belöningen. CoreOS™ bevisar effekten.
+          ParkKey™ är systemet. Parky™ ger belöningen. CoreOS™ är den operativa sanningen.
         </p>
       </section>
     </main>
