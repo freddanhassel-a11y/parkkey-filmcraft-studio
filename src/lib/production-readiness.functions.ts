@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
+import { getLinkedInRuntimeReadiness } from "./linkedin.server";
 
 export type ReadinessState = "CONNECTED" | "NOT CONNECTED" | "DEGRADED" | "MANUAL CHECK" | "FAILED";
 
@@ -19,6 +20,18 @@ type ConnectionRow = {
   verified_at: string | null;
 };
 
+const VERIFICATION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+function verificationAgeState(value: string | null): "fresh" | "stale" | "invalid" | "missing" {
+  if (!value) return "missing";
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return "invalid";
+  const age = Date.now() - timestamp;
+  if (age < -FUTURE_CLOCK_SKEW_MS) return "invalid";
+  return age > VERIFICATION_MAX_AGE_MS ? "stale" : "fresh";
+}
+
 function verifiedConnection(
   row: ConnectionRow | undefined,
   label: string,
@@ -35,7 +48,7 @@ function verifiedConnection(
   }
 
   const status = row.status.toUpperCase();
-  if (status === "FAILED") {
+  if (status === "FAILED" || status === "ERROR") {
     return {
       key,
       label,
@@ -53,22 +66,28 @@ function verifiedConnection(
       verifiedAt: row.verified_at,
     };
   }
-  if (status === "CONNECTED" && row.verified_at) {
-    return {
-      key,
-      label,
-      state: "CONNECTED",
-      note: row.notes ?? "Verifierad anslutning.",
-      verifiedAt: row.verified_at,
-    };
-  }
-  if (status === "CONNECTED" && !row.verified_at) {
+  if (status === "CONNECTED") {
+    const ageState = verificationAgeState(row.verified_at);
+    if (ageState === "fresh") {
+      return {
+        key,
+        label,
+        state: "CONNECTED",
+        note: row.notes ?? "Verifierad anslutning.",
+        verifiedAt: row.verified_at,
+      };
+    }
     return {
       key,
       label,
       state: "MANUAL CHECK",
-      note: "Anslutningen är markerad som ansluten men saknar verifieringstid.",
-      verifiedAt: null,
+      note:
+        ageState === "stale"
+          ? "Anslutningen var verifierad, men beviset är äldre än 24 timmar och måste verifieras igen."
+          : ageState === "invalid"
+            ? "Anslutningen har en ogiltig verifieringstid och måste verifieras igen."
+            : "Anslutningen är markerad som ansluten men saknar verifieringstid.",
+      verifiedAt: row.verified_at,
     };
   }
   if (status === "MANUAL CHECK") {
@@ -86,6 +105,28 @@ function verifiedConnection(
     state: "NOT CONNECTED",
     note: row.notes ?? "Ingen verifierad anslutning.",
     verifiedAt: row.verified_at,
+  };
+}
+
+function applyLinkedInRuntimeEvidence(item: ProductionReadinessItem): ProductionReadinessItem {
+  if (item.state !== "CONNECTED") return item;
+  const runtime = getLinkedInRuntimeReadiness();
+  if (runtime.configured) return item;
+  return {
+    ...item,
+    state: "MANUAL CHECK",
+    note: `CoreOS-bevis finns, men produktionens LinkedIn-transport är inte komplett: ${runtime.note}`,
+  };
+}
+
+function applyVideoSecurityEvidence(item: ProductionReadinessItem): ProductionReadinessItem {
+  if (item.state !== "CONNECTED") return item;
+  const allowedHosts = (process.env["VIDEO_RENDER_ALLOWED_HOSTS"] ?? "").trim();
+  if (allowedHosts) return item;
+  return {
+    ...item,
+    state: "MANUAL CHECK",
+    note: "Videorenderaren är verifierad, men VIDEO_RENDER_ALLOWED_HOSTS saknas. Externa renderfiler blockeras fail-closed tills en server-side hostlista är konfigurerad.",
   };
 }
 
@@ -111,11 +152,18 @@ export const getProductionReadiness = createServerFn({ method: "GET" })
       verifiedAt: new Date().toISOString(),
     };
 
+    const linkedin = applyLinkedInRuntimeEvidence(
+      verifiedConnection(byProvider.get("linkedin"), "LinkedIn", "linkedin"),
+    );
+    const videoRenderer = applyVideoSecurityEvidence(
+      verifiedConnection(byProvider.get("video-renderer"), "Video Renderer", "video-renderer"),
+    );
+
     const items: ProductionReadinessItem[] = [
       coreos,
       verifiedConnection(byProvider.get("image-generation"), "Image AI", "image-ai"),
-      verifiedConnection(byProvider.get("linkedin"), "LinkedIn", "linkedin"),
-      verifiedConnection(byProvider.get("video-renderer"), "Video Renderer", "video-renderer"),
+      linkedin,
+      videoRenderer,
       verifiedConnection(
         byProvider.get("coreos-delivery"),
         "Customer Delivery",
@@ -123,5 +171,9 @@ export const getProductionReadiness = createServerFn({ method: "GET" })
       ),
     ];
 
-    return { items, checkedAt: new Date().toISOString() };
+    return {
+      items,
+      checkedAt: new Date().toISOString(),
+      verificationMaxAgeHours: VERIFICATION_MAX_AGE_MS / (60 * 60 * 1000),
+    };
   });
