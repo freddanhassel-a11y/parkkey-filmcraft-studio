@@ -12,6 +12,8 @@ export type LinkedInCapability = {
   resourceId: string | null;
   grantedScopes: string[];
   requestedScopes: string[];
+  requiredPublishScope: string | null;
+  missingPublishScope: boolean;
   verifiedAt: string | null;
   note: string;
 };
@@ -43,15 +45,26 @@ function disconnected(note: string): LinkedInCapability {
     resourceId: null,
     grantedScopes: [],
     requestedScopes: [],
+    requiredPublishScope: null,
+    missingPublishScope: true,
     verifiedAt: null,
     note,
   };
 }
 
+function requiredWriteScope(row: IntegrationAccount): "w_member_social" | "w_organization_social" {
+  const principal = (row.observed_principal || row.expected_principal || "").toLowerCase();
+  const resource = (row.expected_resource_id || "").toLowerCase();
+  if (principal.startsWith("urn:li:organization:") || resource.startsWith("urn:li:organization:")) {
+    return "w_organization_social";
+  }
+  return "w_member_social";
+}
+
 /**
  * Reads CoreOS' canonical integration truth model. No OAuth token or secret is
- * copied into Film Studio. We deliberately do not hard-code one LinkedIn scope:
- * CoreOS must report a verified account, granted scopes and publishing intent.
+ * copied into Film Studio. Publishing is fail-closed: an otherwise verified
+ * account must also have the LinkedIn write scope that matches its author type.
  */
 export async function getLinkedInCapabilityFromCoreos(
   coreos: CoreosClient,
@@ -87,6 +100,10 @@ export async function getLinkedInCapabilityFromCoreos(
 
   const grantedScopes = row.granted_scopes ?? [];
   const requestedScopes = row.requested_scopes ?? [];
+  const requiredPublishScope = requiredWriteScope(row);
+  const hasPublishScope = grantedScopes.some(
+    (scope) => scope.trim().toLowerCase() === requiredPublishScope,
+  );
   const principalMatches =
     Boolean(row.observed_principal) &&
     row.observed_principal?.toLowerCase() === row.expected_principal.toLowerCase();
@@ -95,7 +112,7 @@ export async function getLinkedInCapabilityFromCoreos(
     row.preflight_verified === true &&
     Boolean(row.last_verified_at) &&
     principalMatches &&
-    grantedScopes.length > 0;
+    hasPublishScope;
   const purpose = row.purpose.toLowerCase();
   const publishingIntent = purpose.includes("publish") || purpose.includes("social");
 
@@ -104,10 +121,12 @@ export async function getLinkedInCapabilityFromCoreos(
   if (["error", "mismatch", "revoked"].includes(row.status.toLowerCase())) {
     state = "FAILED";
     note = row.last_error ?? row.notes ?? `CoreOS-status: ${row.status}`;
+  } else if (!hasPublishScope && row.status.toLowerCase() === "connected") {
+    state = "MANUAL CHECK";
+    note = `LinkedIn-kontot är anslutet men saknar nödvändig publiceringsrättighet ${requiredPublishScope}.`;
   } else if (verifiedConnection && publishingIntent) {
     state = "CONNECTED";
-    note =
-      "CoreOS har verifierat kontoidentitet, preflight och beviljade scopes för en publiceringsavsedd LinkedIn-integration.";
+    note = `CoreOS har verifierat kontoidentitet, preflight och ${requiredPublishScope} för en publiceringsavsedd LinkedIn-integration.`;
   } else if (verifiedConnection) {
     state = "MANUAL CHECK";
     note =
@@ -127,6 +146,8 @@ export async function getLinkedInCapabilityFromCoreos(
     resourceId: row.expected_resource_id,
     grantedScopes,
     requestedScopes,
+    requiredPublishScope,
+    missingPublishScope: !hasPublishScope,
     verifiedAt: row.last_verified_at,
     note,
   };
