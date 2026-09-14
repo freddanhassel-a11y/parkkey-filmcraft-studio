@@ -17,7 +17,8 @@ export const Route = createFileRoute("/")({
       { property: "og:title", content: "ParkKey™ Film Studio — via CoreOS™" },
       {
         property: "og:description",
-        content: "Starta Film Studio från CoreOS™ — ett kundregister, ett mediabibliotek och samma ParkKey-identitet.",
+        content:
+          "Starta Film Studio från CoreOS™ — ett kundregister, ett mediabibliotek och samma ParkKey-identitet.",
       },
     ],
   }),
@@ -39,7 +40,8 @@ function Landing() {
           Intern produktionsstudio · CoreOS är ingången
         </p>
         <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-[1.05] text-foreground sm:text-6xl">
-          Reklamfilm som känns <span className="text-gradient-park">ParkKey</span> — med CoreOS som nav.
+          Reklamfilm som känns <span className="text-gradient-park">ParkKey</span> — med CoreOS som
+          nav.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
           Film Studio och CoreOS använder samma ParkKey-identitet och samma backend. Starta arbetet i
