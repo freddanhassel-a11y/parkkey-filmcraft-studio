@@ -81,8 +81,7 @@ function hostMatchesRule(hostname: string, rule: string): boolean {
 
 export function assertSafeRenderUrl(url: URL): void {
   if (url.protocol !== "https:") throw new Error("Renderfilen måste använda HTTPS.");
-  if (url.username || url.password)
-    throw new Error("Render-URL får inte innehålla inloggningsuppgifter.");
+  if (url.username || url.password) throw new Error("Render-URL får inte innehålla inloggningsuppgifter.");
   if (url.port && url.port !== "443")
     throw new Error("Render-URL måste använda standardport 443.");
 
