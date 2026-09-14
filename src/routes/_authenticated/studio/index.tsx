@@ -142,9 +142,7 @@ function Dashboard() {
 
           <div className="surface-glass rounded-xl p-4">
             <Blocks aria-hidden="true" className="size-4 text-primary" />
-            <h3 className="mt-3 text-sm font-semibold text-foreground">
-              Lovable · DESIGN / ADMIN
-            </h3>
+            <h3 className="mt-3 text-sm font-semibold text-foreground">Lovable · DESIGN / ADMIN</h3>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               Visuell iteration, connector-setup och adminhjälp. En Lovable-preview är aldrig
               automatiskt produktion.
