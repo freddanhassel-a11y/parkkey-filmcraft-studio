@@ -71,7 +71,7 @@ function Dashboard() {
   const inProgress = projects.filter((p) => p.status !== "EXPORTED" && p.status !== "APPROVED");
   const favorites = projects.filter((p) => p.is_favorite);
   const readyRenders = (data?.renders ?? []).filter((r) => r.status === "READY");
-  const buildSha = import.meta.env.VITE_FILM_STUDIO_SHA?.trim();
+  const buildSha = import.meta.env["VITE_FILM_STUDIO_SHA"]?.trim();
   const buildVerified = Boolean(buildSha);
 
   return (
