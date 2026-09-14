@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
 import { logAudit } from "./audit";
+import { assertSafeRenderUrl, verifyExternalMp4 } from "./video-render-security";
 
 export type VideoProviderState = {
   state: "CONNECTED" | "NOT CONNECTED" | "MANUAL CHECK" | "FAILED";
@@ -124,7 +125,7 @@ export const registerRenderedMaster = createServerFn({ method: "POST" })
     } catch {
       throw new Error("Ogiltig render-URL.");
     }
-    if (url.protocol !== "https:") throw new Error("Renderfilen måste använda HTTPS.");
+    assertSafeRenderUrl(url);
     if (!data.provider.trim()) throw new Error("Provider krävs.");
     if (data.width <= 0 || data.height <= 0 || data.fps <= 0 || data.duration_seconds <= 0) {
       throw new Error("Ogiltig render-metadata.");
@@ -162,23 +163,7 @@ export const registerRenderedMaster = createServerFn({ method: "POST" })
       throw new Error("QA-grinden måste vara godkänd server-side innan en master kan registreras.");
     }
 
-    let head: Response;
-    try {
-      head = await fetch(url, { method: "HEAD", redirect: "follow" });
-    } catch (error) {
-      throw new Error(
-        `Renderfilen kunde inte verifieras: ${error instanceof Error ? error.message : "okänt fel"}`,
-      );
-    }
-    if (!head.ok) throw new Error(`Renderfilen svarade med HTTP ${head.status}.`);
-    const contentType = (head.headers.get("content-type") ?? "").toLowerCase();
-    if (
-      contentType &&
-      !contentType.includes("video/mp4") &&
-      !contentType.includes("octet-stream")
-    ) {
-      throw new Error(`Renderfilen är inte verifierad som MP4 (${contentType}).`);
-    }
+    const verified = await verifyExternalMp4(url);
 
     const { data: row, error } = await context.db
       .from("renders")
@@ -187,8 +172,8 @@ export const registerRenderedMaster = createServerFn({ method: "POST" })
         version_id: data.version_id,
         provider: data.provider.trim(),
         status: "READY",
-        file_url: url.toString(),
-        mime_type: "video/mp4",
+        file_url: verified.finalUrl.toString(),
+        mime_type: verified.contentType,
         duration_seconds: Math.round(data.duration_seconds),
         width: Math.round(data.width),
         height: Math.round(data.height),
@@ -212,6 +197,9 @@ export const registerRenderedMaster = createServerFn({ method: "POST" })
         provider: data.provider,
         qa_verified: true,
         file_verified_http: true,
+        file_verified_allowlist: true,
+        verified_content_type: verified.contentType,
+        final_render_host: verified.finalUrl.hostname,
         width: data.width,
         height: data.height,
         fps: data.fps,
