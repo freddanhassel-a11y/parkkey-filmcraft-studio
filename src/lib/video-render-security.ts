@@ -81,12 +81,16 @@ function hostMatchesRule(hostname: string, rule: string): boolean {
 
 export function assertSafeRenderUrl(url: URL): void {
   if (url.protocol !== "https:") throw new Error("Renderfilen måste använda HTTPS.");
-  if (url.username || url.password) throw new Error("Render-URL får inte innehålla inloggningsuppgifter.");
-  if (url.port && url.port !== "443") throw new Error("Render-URL måste använda standardport 443.");
+  if (url.username || url.password)
+    throw new Error("Render-URL får inte innehålla inloggningsuppgifter.");
+  if (url.port && url.port !== "443")
+    throw new Error("Render-URL måste använda standardport 443.");
 
   const hostname = normalizedHostname(url.hostname);
   if (isBlockedHostname(hostname)) {
-    throw new Error("Render-URL pekar mot ett lokalt eller privat nät och blockeras av säkerhetsskäl.");
+    throw new Error(
+      "Render-URL pekar mot ett lokalt eller privat nät och blockeras av säkerhetsskäl.",
+    );
   }
 
   const allowlist = allowedRenderHosts();
@@ -135,7 +139,8 @@ export async function verifyExternalMp4(
     if (isRedirect(response.status)) {
       const location = response.headers.get("location");
       await response.body?.cancel().catch(() => undefined);
-      if (!location) throw new Error("Renderleverantören returnerade en redirect utan Location-header.");
+      if (!location)
+        throw new Error("Renderleverantören returnerade en redirect utan Location-header.");
       if (redirectCount === MAX_REDIRECTS) throw new Error("Renderfilen har för många redirects.");
       current = new URL(location, current);
       continue;
