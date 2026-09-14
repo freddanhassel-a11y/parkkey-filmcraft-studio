@@ -129,7 +129,8 @@ function Dashboard() {
             <ExternalLink aria-hidden="true" className="size-4 text-primary" />
             <h3 className="mt-3 text-sm font-semibold text-foreground">Cloudflare · LIVE</h3>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Canonical operativ Studio. Verkliga auth-, media-, render- och publiceringsflöden körs här.
+              Canonical operativ Studio. Verkliga auth-, media-, render- och publiceringsflöden körs
+              här.
             </p>
             <Button asChild size="sm" variant="secondary" className="mt-3">
               <a href={PRODUCTION_STUDIO_URL} target="_blank" rel="noreferrer">
@@ -141,9 +142,12 @@ function Dashboard() {
 
           <div className="surface-glass rounded-xl p-4">
             <Blocks aria-hidden="true" className="size-4 text-primary" />
-            <h3 className="mt-3 text-sm font-semibold text-foreground">Lovable · DESIGN / ADMIN</h3>
+            <h3 className="mt-3 text-sm font-semibold text-foreground">
+              Lovable · DESIGN / ADMIN
+            </h3>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Visuell iteration, connector-setup och adminhjälp. En Lovable-preview är aldrig automatiskt produktion.
+              Visuell iteration, connector-setup och adminhjälp. En Lovable-preview är aldrig
+              automatiskt produktion.
             </p>
             <Button asChild size="sm" variant="secondary" className="mt-3">
               <a href={LOVABLE_EDITOR_URL} target="_blank" rel="noreferrer">
@@ -155,9 +159,12 @@ function Dashboard() {
 
           <div className="surface-glass rounded-xl p-4">
             <Database aria-hidden="true" className="size-4 text-primary" />
-            <h3 className="mt-3 text-sm font-semibold text-foreground">Supabase + CoreOS · SHARED DATA</h3>
+            <h3 className="mt-3 text-sm font-semibold text-foreground">
+              Supabase + CoreOS · SHARED DATA
+            </h3>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Samma auth, studio-data, media, kampanjer, approvals, integration truth-state och auditspår används av flödet.
+              Samma auth, studio-data, media, kampanjer, approvals, integration truth-state och
+              auditspår används av flödet.
             </p>
           </div>
         </div>
