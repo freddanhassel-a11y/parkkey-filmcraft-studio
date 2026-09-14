@@ -1,7 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Plus, Star, Sparkles, Film, Download, ShieldCheck } from "lucide-react";
+import {
+  Plus,
+  Star,
+  Sparkles,
+  Film,
+  Download,
+  ShieldCheck,
+  ExternalLink,
+  GitBranch,
+  Database,
+  Blocks,
+} from "lucide-react";
 import { getDashboard } from "@/lib/studio.functions";
 import { getProductionReadiness } from "@/lib/production-readiness.functions";
 import { Button } from "@/components/ui/button";
@@ -12,6 +23,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 export const Route = createFileRoute("/_authenticated/studio/")({
   component: Dashboard,
 });
+
+const PRODUCTION_STUDIO_URL =
+  "https://parkkey-filmcraft-studio.parkkey-coreos-nordic-2026.workers.dev/studio";
+const LOVABLE_EDITOR_URL = "https://lovable.dev/projects/478216cd-8762-46d9-b834-88a0dfe94246";
 
 function Dashboard() {
   const fetchDashboard = useServerFn(getDashboard);
@@ -56,6 +71,8 @@ function Dashboard() {
   const inProgress = projects.filter((p) => p.status !== "EXPORTED" && p.status !== "APPROVED");
   const favorites = projects.filter((p) => p.is_favorite);
   const readyRenders = (data?.renders ?? []).filter((r) => r.status === "READY");
+  const buildSha = import.meta.env["VITE_FILM_STUDIO_SHA"]?.trim();
+  const buildVerified = Boolean(buildSha);
 
   return (
     <div className="space-y-10">
@@ -79,6 +96,75 @@ function Dashboard() {
               Skapa ny film
             </Link>
           </Button>
+        </div>
+      </section>
+
+      <section className="space-y-4" aria-label="Studio bridge">
+        <SectionHeading
+          eyebrow="Studio Bridge"
+          title="Lovable och liveversionen arbetar mot samma sanning"
+          description="GitHub main är kodens source of truth, Cloudflare kör produktion, Lovable används för design/admin och Supabase/CoreOS bär den delade datan."
+        />
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="surface-glass rounded-xl p-4">
+            <div className="flex items-center justify-between gap-2">
+              <GitBranch aria-hidden="true" className="size-4 text-primary" />
+              <span
+                className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                  buildVerified
+                    ? "bg-primary/15 text-primary"
+                    : "bg-status-warning/15 text-status-warning"
+                }`}
+              >
+                {buildVerified ? "VERIFIED BUILD" : "UNVERIFIED BUILD"}
+              </span>
+            </div>
+            <h3 className="mt-3 text-sm font-semibold text-foreground">GitHub main</h3>
+            <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
+              {buildSha ?? "Ingen build-SHA injicerad i denna körning"}
+            </p>
+          </div>
+
+          <div className="surface-glass rounded-xl p-4">
+            <ExternalLink aria-hidden="true" className="size-4 text-primary" />
+            <h3 className="mt-3 text-sm font-semibold text-foreground">Cloudflare · LIVE</h3>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Canonical operativ Studio. Verkliga auth-, media-, render- och publiceringsflöden körs
+              här.
+            </p>
+            <Button asChild size="sm" variant="secondary" className="mt-3">
+              <a href={PRODUCTION_STUDIO_URL} target="_blank" rel="noreferrer">
+                Öppna live Studio
+                <ExternalLink aria-hidden="true" />
+              </a>
+            </Button>
+          </div>
+
+          <div className="surface-glass rounded-xl p-4">
+            <Blocks aria-hidden="true" className="size-4 text-primary" />
+            <h3 className="mt-3 text-sm font-semibold text-foreground">Lovable · DESIGN / ADMIN</h3>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Visuell iteration, connector-setup och adminhjälp. En Lovable-preview är aldrig
+              automatiskt produktion.
+            </p>
+            <Button asChild size="sm" variant="secondary" className="mt-3">
+              <a href={LOVABLE_EDITOR_URL} target="_blank" rel="noreferrer">
+                Öppna Lovable
+                <ExternalLink aria-hidden="true" />
+              </a>
+            </Button>
+          </div>
+
+          <div className="surface-glass rounded-xl p-4">
+            <Database aria-hidden="true" className="size-4 text-primary" />
+            <h3 className="mt-3 text-sm font-semibold text-foreground">
+              Supabase + CoreOS · SHARED DATA
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Samma auth, studio-data, media, kampanjer, approvals, integration truth-state och
+              auditspår används av flödet.
+            </p>
+          </div>
         </div>
       </section>
 
