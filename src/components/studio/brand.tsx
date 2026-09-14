@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Typographic ParkKey lockup for studio chrome.
+ * Typographic CoreOS lockup for the Studio module.
  * Deliberately typographic: the official ParkKey™ logo file is an uploaded brand
  * asset and must never be reconstructed or invented in code.
  */
@@ -9,11 +9,11 @@ export function StudioWordmark({ className }: { className?: string }) {
   return (
     <span className={cn("flex items-baseline gap-2 font-semibold tracking-tight", className)}>
       <span className="text-foreground">
-        PARK<span className="text-primary">KEY</span>
+        CORE<span className="text-primary">OS</span>
         <span className="align-super text-[0.6em]">™</span>
       </span>
       <span className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
-        Film Studio
+        Studio
       </span>
     </span>
   );
