@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
 import { getLinkedInCapabilityFromCoreos } from "./linkedin-capability";
 import { getLinkedInRuntimeReadiness } from "./linkedin.server";
+import { getReplicateRuntimeReadiness, verifyReplicateAccount } from "./replicate.server";
 
 export const listIntegrations = createServerFn({ method: "GET" })
   .middleware([requireParkkeyAuth])
@@ -17,8 +18,8 @@ export const listIntegrations = createServerFn({ method: "GET" })
 
 /**
  * Truth-safe integration verification. CONNECTED is only emitted when the
- * canonical CoreOS integration record is verified and the production runtime
- * has the corresponding server-side transport configured.
+ * canonical/provider record is verified and the production runtime has the
+ * corresponding server-side transport configured.
  */
 export const verifyIntegration = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
@@ -34,7 +35,7 @@ export const verifyIntegration = createServerFn({ method: "POST" })
 
       if (capability.publishCapable && runtime.configured) {
         status = "CONNECTED";
-        notes = `CoreOS har verifierat LinkedIn-identitet, publiceringssyfte och beviljade capabilities. Direct Posts API transport är konfigurerad server-side (API ${runtime.apiVersion}).`;
+        notes = `CoreOS har verifierat LinkedIn-identitet, publiceringssyfte och ${capability.requiredPublishScope ?? "nödvändig write-scope"}. Direct Posts API transport är konfigurerad server-side (API ${runtime.apiVersion}).`;
       } else if (capability.state === "FAILED") {
         status = "FAILED";
         notes = capability.note;
@@ -46,6 +47,21 @@ export const verifyIntegration = createServerFn({ method: "POST" })
       } else {
         status = capability.state;
         notes = `${capability.note} ${runtime.note}`;
+      }
+    } else if (provider === "video-renderer") {
+      const runtime = getReplicateRuntimeReadiness();
+      if (!runtime.configured) {
+        status = "NOT CONNECTED";
+        notes = `${runtime.note} Modell: ${runtime.model}.`;
+      } else {
+        const verification = await verifyReplicateAccount();
+        if (verification.ok) {
+          status = "CONNECTED";
+          notes = `${verification.note} MP4-output accepteras endast från replicate.delivery-allowlisten och verifieras fortfarande via HTTPS + content-type innan READY.`;
+        } else {
+          status = verification.status >= 400 ? "FAILED" : "MANUAL CHECK";
+          notes = verification.note;
+        }
       }
     } else if (provider === "image-generation") {
       const lovableKey = process.env["LOVABLE_API_KEY"];
