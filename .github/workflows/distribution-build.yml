@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ! git grep -nE '(sb_service_role_|SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|linkedin.*(access_token|client_secret)[[:space:]]*=)' -- ':!bun.lock' ':!*.md'
+          ! git grep -nE '(sb_service_role_|SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|linkedin.*(access_token|client_secret)[[:space:]]*=)' -- ':!bun.lock' ':!*.md' ':!.github/workflows/distribution-build.yml'
 
       - name: Typecheck
         run: bunx tsc --noEmit
