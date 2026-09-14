@@ -44,9 +44,9 @@ function Landing() {
           nav.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          Film Studio och CoreOS använder samma ParkKey-identitet och samma backend. Starta arbetet i
-          CoreOS för att behålla kundkontext, brief, material, sanningsstatus och uppföljning i ett
-          sammanhängande flöde.
+          Film Studio och CoreOS använder samma ParkKey-identitet och samma backend. Starta arbetet
+          i CoreOS för att behålla kundkontext, brief, material, sanningsstatus och uppföljning i
+          ett sammanhängande flöde.
         </p>
 
         <div className="mt-9 flex flex-wrap gap-3">
