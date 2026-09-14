@@ -32,9 +32,20 @@ export type ParkkeyTeamMember = {
   status: "pending" | "approved" | "suspended";
 };
 
+async function readMembershipForUser(userId: string): Promise<ParkkeyTeamMember | null> {
+  const { data, error } = await parkkeyAuth
+    .from("team_members")
+    .select("id,user_id,full_name,email,title,status")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as ParkkeyTeamMember | null) ?? null;
+}
+
 /**
- * Mirrors the CoreOS first-login flow: the database function only links the current
- * auth user when an administrator pre-approved the e-mail in CoreOS.
+ * Mirrors the CoreOS first-login flow without making an already-linked member depend on
+ * the claim RPC. Existing members are read first; the claim is only needed when an admin
+ * pre-approved the e-mail but no auth user has been linked yet.
  */
 export async function claimAndReadMembership(): Promise<{
   member: ParkkeyTeamMember | null;
@@ -46,21 +57,18 @@ export async function claimAndReadMembership(): Promise<{
       throw userError ?? new Error("Authenticated ParkKey user is missing");
     }
 
+    const userId = userData.user.id;
+    const existing = await readMembershipForUser(userId);
+    if (existing) {
+      return { member: existing, verifyFailed: false };
+    }
+
     const claim = await (
       parkkeyAuth.rpc as unknown as (fn: string) => Promise<{ error: { message?: string } | null }>
     )("claim_preapproved_team_member");
     if (claim.error) throw new Error(claim.error.message ?? "Team claim failed");
 
-    // Match CoreOS exactly: only read the membership row bound to the current auth user.
-    // Without this filter, admin/RLS visibility can expose multiple team_members rows and
-    // maybeSingle() fails even though the current account is already approved.
-    const { data, error } = await parkkeyAuth
-      .from("team_members")
-      .select("id,user_id,full_name,email,title,status")
-      .eq("user_id", userData.user.id)
-      .maybeSingle();
-    if (error) throw error;
-    return { member: (data as ParkkeyTeamMember | null) ?? null, verifyFailed: false };
+    return { member: await readMembershipForUser(userId), verifyFailed: false };
   } catch (error) {
     console.error("[ParkKey auth] team membership verification failed", error);
     return { member: null, verifyFailed: true };

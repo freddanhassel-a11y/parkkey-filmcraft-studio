@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { KeyRound, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 
 import { parkkeyAuth } from "@/integrations/parkkey/auth-client";
 import { Button } from "@/components/ui/button";
@@ -34,12 +34,13 @@ function AuthPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     void parkkeyAuth.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/studio" });
+      if (data.session) navigate({ to: "/studio", replace: true });
     });
   }, [navigate]);
 
@@ -52,9 +53,23 @@ function AuthPage() {
         password,
       });
       if (error) throw error;
-      navigate({ to: "/studio" });
+
+      const { data: verified, error: verifyError } = await parkkeyAuth.auth.getUser();
+      if (verifyError || !verified.user) {
+        throw verifyError ?? new Error("Sessionen kunde inte verifieras efter inloggning.");
+      }
+
+      toast.success("Inloggad. Verifierar ParkKey-behörighet…");
+      navigate({ to: "/studio", replace: true });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Inloggningen misslyckades.");
+      const message = error instanceof Error ? error.message : "Inloggningen misslyckades.";
+      if (/invalid login credentials/i.test(message)) {
+        toast.error(
+          "Fel e-post eller lösenord. Använd samma ParkKey/CoreOS-konto eller välj Glömt lösenord.",
+        );
+      } else {
+        toast.error(message);
+      }
     } finally {
       setBusy(false);
     }
@@ -85,8 +100,8 @@ function AuthPage() {
         <StudioWordmark className="text-sm" />
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Logga in</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Använd ditt ParkKey-konto — samma inloggning som i CoreOS. Nya konton skapas av en
-          administratör i CoreOS, inte här.
+          Använd ditt ParkKey-konto — samma e-post och lösenord som i CoreOS. Nya konton skapas av
+          en administratör i CoreOS, inte här.
         </p>
 
         <form onSubmit={signIn} className="mt-6 space-y-4">
@@ -110,17 +125,30 @@ function AuthPage() {
               />
               <Input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-9"
+                className="px-9"
               />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+                aria-pressed={showPassword}
+              >
+                {showPassword ? (
+                  <EyeOff aria-hidden="true" className="size-4" />
+                ) : (
+                  <Eye aria-hidden="true" className="size-4" />
+                )}
+              </button>
             </div>
           </div>
           <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Loggar in…" : "Logga in"}
+            {busy ? "Loggar in och verifierar…" : "Logga in"}
           </Button>
         </form>
 
