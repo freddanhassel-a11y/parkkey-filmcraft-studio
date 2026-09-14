@@ -49,7 +49,7 @@ function VisualIntakePage() {
   const coreosId = readParam("coreos_id");
   const coreosLabel = readParam("coreos_label");
 
-  const projects = data?.projects ?? [];
+  const projects = useMemo(() => data?.projects ?? [], [data?.projects]);
   const validInitialProject = useMemo(
     () => (projects.some((project) => project.id === initialProject) ? initialProject : "none"),
     [initialProject, projects],
@@ -121,8 +121,8 @@ function VisualIntakePage() {
           <div>
             <h2 className="font-semibold text-foreground">Placera rätt från början</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Välj filmprojekt, kampanj och klassificering innan filen skickas in. CoreOS-kontext följer
-              med automatiskt när inkorgen öppnas från en CoreOS-länk.
+              Välj filmprojekt, kampanj och klassificering innan filen skickas in. CoreOS-kontext
+              följer med automatiskt när inkorgen öppnas från en CoreOS-länk.
             </p>
           </div>
         </div>
@@ -192,8 +192,8 @@ function VisualIntakePage() {
           <UploadCloud aria-hidden="true" className="mx-auto size-8 text-primary" />
           <p className="mt-3 font-semibold text-foreground">Skicka material till Film Studio</p>
           <p className="mx-auto mt-1 max-w-xl text-sm text-muted-foreground">
-            Bilder, video, ljud eller PDF lagras privat och registreras med vald kampanj/projektkontext.
-            Uppladdning betyder inte godkänd publicering.
+            Bilder, video, ljud eller PDF lagras privat och registreras med vald
+            kampanj/projektkontext. Uppladdning betyder inte godkänd publicering.
           </p>
           <Button className="mt-5" onClick={() => fileInput.current?.click()} disabled={uploading}>
             {uploading ? "Tar emot material…" : "Välj filer"}
