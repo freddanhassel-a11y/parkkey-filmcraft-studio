@@ -32,7 +32,7 @@ const NAV = [
   { to: "/studio/library", label: "Filmer", icon: Clapperboard, exact: false },
   { to: "/studio/new", label: "Ny film", icon: Plus, exact: false },
   { to: "/studio/social", label: "Social Creative", icon: ImageIcon, exact: false },
-  { to: "/studio/linkedin", label: "LinkedIn Studio", icon: Linkedin, exact: false },
+  { to: "/studio/linkedin", label: "LinkedIn", icon: Linkedin, exact: false },
   { to: "/studio/media", label: "Mediabibliotek", icon: Boxes, exact: false },
   { to: "/studio/customers", label: "Kundmaterial", icon: Handshake, exact: false },
   { to: "/studio/assets", label: "Leveranser", icon: PackageCheck, exact: false },
@@ -63,13 +63,13 @@ function StudioLayout() {
 
       <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-          <Link to="/studio" className="mr-2 rounded-md">
+          <Link to="/studio" className="mr-2 rounded-md" aria-label="CoreOS Studio">
             <StudioWordmark className="text-sm" />
           </Link>
           <div className="ml-auto order-2 flex items-center gap-3">
             {user?.email ? (
               <span className="hidden text-xs text-muted-foreground md:inline">
-                {user.email} · ParkKey-konto
+                {user.email} · CoreOS-konto
               </span>
             ) : null}
             <Button variant="ghost" size="sm" onClick={() => void handleSignOut()}>
@@ -77,7 +77,7 @@ function StudioLayout() {
               Logga ut
             </Button>
           </div>
-          <nav aria-label="Studionavigering" className="order-3 w-full">
+          <nav aria-label="CoreOS Studio-navigering" className="order-3 w-full">
             <ul className="flex flex-wrap gap-1">
               {NAV.map((item) => (
                 <li key={item.to}>
@@ -107,7 +107,7 @@ function StudioLayout() {
       <footer className="mx-auto max-w-7xl px-4 pb-10 text-xs text-muted-foreground sm:px-6">
         <p className="flex items-center gap-2">
           <LibraryBig aria-hidden="true" className="size-3.5" />
-          Varje filmprojekt och socialt paket ärver de aktiva ParkKey-reglerna automatiskt.
+          CoreOS Studio använder samma ParkKey-regler, identitet, kunder och materialdata som övriga CoreOS.
         </p>
       </footer>
     </div>
