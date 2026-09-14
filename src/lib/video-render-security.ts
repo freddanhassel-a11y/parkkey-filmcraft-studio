@@ -1,15 +1,17 @@
 const MAX_REDIRECTS = 3;
 
+type Ipv4Tuple = [number, number, number, number];
+
 function normalizedHostname(value: string): string {
   return value.trim().toLowerCase().replace(/^\[/, "").replace(/\]$/, "").replace(/\.$/, "");
 }
 
-function parseIpv4(hostname: string): number[] | null {
+function parseIpv4(hostname: string): Ipv4Tuple | null {
   const parts = hostname.split(".");
   if (parts.length !== 4) return null;
   const octets = parts.map((part) => Number(part));
   if (octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return null;
-  return octets;
+  return [octets[0]!, octets[1]!, octets[2]!, octets[3]!];
 }
 
 function isPrivateIpv4(hostname: string): boolean {
@@ -103,11 +105,15 @@ function isRedirect(status: number): boolean {
 }
 
 async function probe(url: URL, method: "HEAD" | "GET"): Promise<Response> {
-  const headers = method === "GET" ? { Range: "bytes=0-0" } : undefined;
-  return fetch(url, { method, headers, redirect: "manual" });
+  if (method === "GET") {
+    return fetch(url, { method, headers: { Range: "bytes=0-0" }, redirect: "manual" });
+  }
+  return fetch(url, { method, redirect: "manual" });
 }
 
-export async function verifyExternalMp4(initialUrl: URL): Promise<{ finalUrl: URL; contentType: string }> {
+export async function verifyExternalMp4(
+  initialUrl: URL,
+): Promise<{ finalUrl: URL; contentType: string }> {
   let current = initialUrl;
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
