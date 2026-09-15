@@ -135,6 +135,59 @@ jobs:
           --var REPLICATE_VIDEO_MODEL:google/veo-2
           --var LINKEDIN_API_VERSION:202608
 
+      - name: Sync available server-only integration secrets
+        if: steps.cloudflare.outputs.enabled == 'true'
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
+          LINKEDIN_CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
+          LINKEDIN_REDIRECT_URI: ${{ secrets.LINKEDIN_REDIRECT_URI }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
+          LOVABLE_API_KEY: ${{ secrets.LOVABLE_API_KEY }}
+        run: |
+          set -euo pipefail
+          payload="$(mktemp)"
+          jq -n '{}' > "$payload"
+          configured=0
+          for name in LINKEDIN_ACCESS_TOKEN LINKEDIN_CLIENT_ID LINKEDIN_CLIENT_SECRET LINKEDIN_REDIRECT_URI REPLICATE_API_TOKEN LOVABLE_API_KEY; do
+            value="${!name:-}"
+            if [ -n "$value" ]; then
+              tmp="$(mktemp)"
+              jq --arg key "$name" --arg value "$value" '. + {($key): $value}' "$payload" > "$tmp"
+              mv "$tmp" "$payload"
+              echo "${name}=CONFIGURED_IN_GITHUB"
+              configured=$((configured + 1))
+            else
+              echo "${name}=NOT_STORED_IN_GITHUB"
+            fi
+          done
+          if [ "$configured" -gt 0 ]; then
+            npx --yes wrangler@latest secret bulk "$payload" --name parkkey-filmcraft-studio
+          fi
+          rm -f "$payload"
+
+      - name: Verify Worker server-only integration secrets
+        if: steps.cloudflare.outputs.enabled == 'true'
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@latest secret list --name parkkey-filmcraft-studio > /tmp/filmstudio-secrets.json
+          jq -r '.[].name' /tmp/filmstudio-secrets.json | sort > /tmp/filmstudio-secret-names.txt
+          for name in LINKEDIN_ACCESS_TOKEN LINKEDIN_CLIENT_ID LINKEDIN_CLIENT_SECRET LINKEDIN_REDIRECT_URI REPLICATE_API_TOKEN LOVABLE_API_KEY; do
+            if grep -Fxq "$name" /tmp/filmstudio-secret-names.txt; then
+              echo "${name}=CONFIGURED_ON_WORKER"
+            else
+              echo "${name}=MISSING_ON_WORKER"
+            fi
+          done
+          rm -f /tmp/filmstudio-secrets.json /tmp/filmstudio-secret-names.txt
+
       - name: E2E smoke production Worker
         if: steps.cloudflare.outputs.enabled == 'true'
         shell: bash
