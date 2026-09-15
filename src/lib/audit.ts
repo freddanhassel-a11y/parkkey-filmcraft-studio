@@ -15,6 +15,7 @@ export type AuditAction =
   | "social.publish.attempt"
   | "social.publish.success"
   | "social.publish.failed"
+  | "linkedin.history.sync"
   | "delivery.package.create"
   | "delivery.package.confirm"
   | "render.master.register"
