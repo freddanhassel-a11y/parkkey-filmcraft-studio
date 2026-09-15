@@ -41,7 +41,9 @@ export function LinkedInPublishGate(props: {
         props.onResult();
       })
       .catch((error: unknown) =>
-        toast.error(error instanceof Error ? error.message : "Kunde inte förbereda LinkedIn-handoff."),
+        toast.error(
+          error instanceof Error ? error.message : "Kunde inte förbereda LinkedIn-handoff.",
+        ),
       )
       .finally(() => setManualBusy(false));
   };
@@ -107,7 +109,9 @@ export function LinkedInPublishGate(props: {
                   },
                   (error: unknown) =>
                     toast.error(
-                      error instanceof Error ? error.message : "LinkedIn-publiceringen misslyckades.",
+                      error instanceof Error
+                        ? error.message
+                        : "LinkedIn-publiceringen misslyckades.",
                     ),
                 )
                 .finally(() => setPublishing(false));
@@ -126,8 +130,8 @@ export function LinkedInPublishGate(props: {
       </div>
 
       <p className="mt-2 text-xs text-muted-foreground">
-        Den manuella vägen loggas som MANUAL HANDOFF — READY och ändrar aldrig status till
-        PUBLISHED utan ett verifierat LinkedIn-resultat.
+        Den manuella vägen loggas som MANUAL HANDOFF — READY och ändrar aldrig status till PUBLISHED
+        utan ett verifierat LinkedIn-resultat.
       </p>
 
       {!eligible ? (
