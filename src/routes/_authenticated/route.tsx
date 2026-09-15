@@ -3,7 +3,6 @@ import { ShieldAlert } from "lucide-react";
 
 import { parkkeyAuth } from "@/integrations/parkkey/auth-client";
 import { ParkkeySessionProvider, useParkkeySession } from "@/lib/parkkey-session";
-import { PasswordSetupGate } from "@/components/studio/PasswordSetupGate";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -16,9 +15,7 @@ export const Route = createFileRoute("/_authenticated")({
   component: () => (
     <ParkkeySessionProvider>
       <MembershipGate>
-        <PasswordSetupGate>
-          <Outlet />
-        </PasswordSetupGate>
+        <Outlet />
       </MembershipGate>
     </ParkkeySessionProvider>
   ),
@@ -36,7 +33,7 @@ function MembershipGate({ children }: { children: React.ReactNode }) {
     return (
       <main className="surface-cinematic flex min-h-screen items-center justify-center px-4">
         <p className="text-sm text-muted-foreground" role="status">
-          Verifierar ParkKey-behörighet…
+          Verifierar CoreOS-behörighet…
         </p>
       </main>
     );
@@ -57,11 +54,10 @@ function MembershipGate({ children }: { children: React.ReactNode }) {
               : `Kontot ${accountLabel} är inte godkänt i ParkKey-teamet. Be en administratör förbereda e-postadressen i CoreOS.`}
         </p>
         <p className="mt-4 text-xs text-muted-foreground">
-          Film Studio använder samma inloggning och samma godkännanden som CoreOS. Ingen separat
-          lösenordsdatabas finns här.
+          Film Studio har ingen separat inloggning eller lösenordssetup. CoreOS-identiteten och approved team_members är enda åtkomstgrinden.
         </p>
         <Button variant="outline" className="mt-6" onClick={() => void signOut()}>
-          Logga ut
+          Logga ut från ParkKey
         </Button>
       </div>
     </main>
