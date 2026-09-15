@@ -16,6 +16,28 @@ export const listIntegrations = createServerFn({ method: "GET" })
     return { legacy: legacy.data ?? [], connections: connections.data ?? [] };
   });
 
+async function verifyCoreosBridge(context: { db: any }) {
+  const [members, films, media, social] = await Promise.all([
+    context.db.from("team_members").select("id", { count: "exact", head: true }).eq("status", "approved"),
+    context.db.from("film_projects").select("id", { count: "exact", head: true }),
+    context.db.from("media_assets").select("id", { count: "exact", head: true }),
+    context.db.from("social_posts").select("id", { count: "exact", head: true }),
+  ]);
+
+  const firstError = [members.error, films.error, media.error, social.error].find(Boolean);
+  if (firstError) {
+    return {
+      status: "FAILED",
+      notes: `Gemensamma CoreOS-backenden kunde inte verifieras: ${firstError.message}`,
+    };
+  }
+
+  return {
+    status: "CONNECTED",
+    notes: `Verifierad gemensam CoreOS-backend: ${members.count ?? 0} godkända teammedlemmar, ${films.count ?? 0} filmprojekt, ${media.count ?? 0} media-assets och ${social.count ?? 0} sociala poster. Samma RLS/team_members används i Studio och CoreOS.`,
+  };
+}
+
 /**
  * Truth-safe integration verification. CONNECTED is only emitted when the
  * canonical/provider record is verified and the production runtime has the
@@ -29,7 +51,23 @@ export const verifyIntegration = createServerFn({ method: "POST" })
     let status = "NOT CONNECTED";
     let notes = "Ingen verifierad anslutning hittades i serverns miljö.";
 
-    if (provider === "linkedin") {
+    if (provider === "coreos-bridge") {
+      const result = await verifyCoreosBridge(context);
+      status = result.status;
+      notes = result.notes;
+    } else if (provider === "manual-upload") {
+      status = "CONFIGURED";
+      notes =
+        "Manuell uppladdning kräver ingen extern provider. Anslutningen är konfigurerad; READY/APPROVED sätts först när en verklig fil eller URL finns och QA har verifierats.";
+    } else if (provider === "coreos-delivery") {
+      status = "NOT CONNECTED";
+      notes =
+        "Film Studio förbereder leveranspaket, men externt kundutskick sker endast via CoreOS kommunikationsflöde efter uttrycklig användaråtgärd. Ingen automatisk sändtransport aktiveras här.";
+    } else if (provider === "adobe-firefly") {
+      status = "NOT CONNECTED";
+      notes =
+        "Ingen verifierad Adobe Firefly-servertransport finns i Film Studio Worker. Adobe kan användas i produktionen, men CONNECTED kräver en testad server-side integration.";
+    } else if (provider === "linkedin") {
       const capability = await getLinkedInCapabilityFromCoreos(context.coreos);
       const runtime = getLinkedInRuntimeReadiness();
 
@@ -66,7 +104,8 @@ export const verifyIntegration = createServerFn({ method: "POST" })
     } else if (provider === "image-generation") {
       const lovableKey = process.env["LOVABLE_API_KEY"];
       if (!lovableKey) {
-        notes = "Ingen AI-nyckel i serverns miljö — bildgenerering kan inte aktiveras.";
+        notes =
+          "Ingen verifierad AI-nyckel i Film Studio Workers servermiljö. Workspace-tillgång räcker inte för att markera runtime CONNECTED.";
       } else {
         try {
           const res = await fetch("https://ai.gateway.lovable.dev/v1/models", {
@@ -89,12 +128,13 @@ export const verifyIntegration = createServerFn({ method: "POST" })
         "Ingen automatisk kontroll finns för den här leverantören. Status kräver manuell verifiering.";
     }
 
+    const verified = status === "CONNECTED" || status === "CONFIGURED";
     const { data: row, error } = await context.db
       .from("integration_connections")
       .update({
         status,
         notes,
-        verified_at: status === "CONNECTED" ? new Date().toISOString() : null,
+        verified_at: verified ? new Date().toISOString() : null,
       })
       .eq("provider", provider)
       .select("*")
