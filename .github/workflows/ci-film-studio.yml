@@ -3,6 +3,7 @@ name: Film Studio CI
 on:
   push:
     branches:
+      - main
       - feat/film-studio-production-phase-2-v2
       - feat/phase-2-production-workflow
       - feat/phase-3-delivery-proof-qa
@@ -14,6 +15,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: film-studio-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
