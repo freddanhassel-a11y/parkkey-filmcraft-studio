@@ -30,19 +30,19 @@ jobs:
           set -euo pipefail
           ! git grep -nE '(sb_service_role_|SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=|linkedin.*(access_token|client_secret)[[:space:]]*=)' -- ':!bun.lock' ':!*.md' ':!.github/workflows/distribution-build.yml'
 
-      - name: Typecheck
-        run: bunx tsc --noEmit
-
-      - name: Lint
-        run: bun run lint
-
-      - name: Production build
+      - name: Production build and route generation
         env:
           VITE_SUPABASE_URL: https://xoabfpxdqqlutxwjgqii.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_Y1afZYB-ULMMdB_5y-21Aw_LYQxqFxl
           SUPABASE_URL: https://xoabfpxdqqlutxwjgqii.supabase.co
           SUPABASE_PUBLISHABLE_KEY: sb_publishable_Y1afZYB-ULMMdB_5y-21Aw_LYQxqFxl
         run: bun run build
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Lint
+        run: bun run lint
 
       - name: Verify distribution output
         shell: bash
