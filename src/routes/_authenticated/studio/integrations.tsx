@@ -15,15 +15,9 @@ export const Route = createFileRoute("/_authenticated/studio/integrations")({
       {
         name: "description",
         content:
-          "Status för render-, bildgenererings- och LinkedIn-anslutningar med verklig verifiering och adminchecklista.",
+          "Gemensam CoreOS/Film Studio-status för material, rendering, bildgenerering och LinkedIn med verklig verifiering.",
       },
-      { property: "og:title", content: "Integrationer — ParkKey™ Film Studio" },
-      {
-        property: "og:description",
-        content: "Sanningsenlig anslutningsstatus för ParkKey Film Studio.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { name: "robots", content: "noindex,nofollow,noarchive" },
     ],
   }),
   component: IntegrationsPage,
@@ -39,6 +33,7 @@ const CHECKLIST = [
 
 function statusTone(status: string) {
   if (status === "CONNECTED") return "text-status-verified border-status-verified/50";
+  if (status === "CONFIGURED") return "text-sky-500 border-sky-500/50";
   if (status === "ERROR" || status === "FAILED") return "text-status-error border-status-error/50";
   return "text-status-unknown border-status-unknown/40";
 }
@@ -52,13 +47,33 @@ function IntegrationsPage() {
     queryFn: () => fetchIntegrations(),
   });
 
+  const connections = data?.connections ?? [];
+  const connected = connections.filter((connection) => connection.status === "CONNECTED").length;
+  const configured = connections.filter((connection) => connection.status === "CONFIGURED").length;
+  const blocked = connections.length - connected - configured;
+
   return (
     <div className="space-y-8">
       <SectionHeading
-        eyebrow="Integrationer"
-        title="Anslutningar"
-        description="Status sätts bara av en verklig kontroll mot serverns miljö. Saknas OAuth, token eller verifierad capability visas det öppet — aldrig grönt för okänt läge."
+        eyebrow="CoreOS · Integrationer"
+        title="En gemensam anslutningssanning"
+        description="Film Studio använder CoreOS-inloggningen, samma Supabase-backend och samma integration_connections-register. En anslutning blir aldrig grön bara för att en connector finns i katalogen — runtime måste verifieras."
       />
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-status-verified/30 bg-card/60 p-4">
+          <p className="text-xs text-muted-foreground">Verifierat anslutna</p>
+          <p className="mt-1 text-2xl font-semibold text-status-verified">{connected}</p>
+        </div>
+        <div className="rounded-xl border border-sky-500/30 bg-card/60 p-4">
+          <p className="text-xs text-muted-foreground">Konfigurerade utan extern API</p>
+          <p className="mt-1 text-2xl font-semibold text-sky-500">{configured}</p>
+        </div>
+        <div className="rounded-xl border border-status-unknown/30 bg-card/60 p-4">
+          <p className="text-xs text-muted-foreground">Kräver extern/runtime-åtgärd</p>
+          <p className="mt-1 text-2xl font-semibold text-status-unknown">{blocked}</p>
+        </div>
+      </div>
 
       <div
         className="flex items-start gap-3 rounded-xl border border-border bg-card/60 p-4 text-sm"
@@ -66,8 +81,9 @@ function IntegrationsPage() {
       >
         <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 text-primary" />
         <p>
-          Alla hemligheter ligger i serverns miljö. Webbläsaren ser aldrig en access token, och all
-          publicering och leverans går genom serverfunktioner efter behörighetskontroll.
+          CoreOS är enda inloggningen. Alla hemligheter ligger server-side; webbläsaren ser aldrig
+          provider-secrets. Verifiera-knappen testar den verkliga produktionsvägen och uppdaterar
+          samma register som CoreOS läser.
         </p>
       </div>
 
@@ -81,31 +97,31 @@ function IntegrationsPage() {
         </p>
       ) : (
         <ul className="space-y-3">
-          {(data?.connections ?? []).map((c) => (
+          {connections.map((connection) => (
             <li
-              key={c.id}
+              key={connection.id}
               className="rounded-xl border border-border bg-card/70 p-5 backdrop-blur-xl"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-semibold">{c.display_name}</p>
+                  <p className="font-semibold">{connection.display_name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {c.capability ?? "Ingen kapabilitet angiven"}
+                    {connection.capability ?? "Ingen kapabilitet angiven"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] ${statusTone(c.status)}`}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] ${statusTone(connection.status)}`}
                   >
-                    {c.status}
+                    {connection.status}
                   </span>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() =>
-                      void verify({ data: { provider: c.provider } }).then(
+                      void verify({ data: { provider: connection.provider } }).then(
                         (res) => {
-                          toast.message(`${c.display_name}: ${res.status}`);
+                          toast.message(`${connection.display_name}: ${res.status}`);
                           void qc.invalidateQueries({ queryKey: ["integrations"] });
                         },
                         (err: unknown) =>
@@ -120,15 +136,17 @@ function IntegrationsPage() {
                   </Button>
                 </div>
               </div>
-              {c.notes ? <p className="mt-3 text-sm text-muted-foreground">{c.notes}</p> : null}
-              {c.verified_at ? (
+              {connection.notes ? (
+                <p className="mt-3 text-sm text-muted-foreground">{connection.notes}</p>
+              ) : null}
+              {connection.verified_at ? (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Senast verifierad {new Date(c.verified_at).toLocaleString("sv-SE")}
+                  Senast verifierad {new Date(connection.verified_at).toLocaleString("sv-SE")}
                 </p>
               ) : null}
             </li>
           ))}
-          {(data?.connections ?? []).length === 0 ? (
+          {connections.length === 0 ? (
             <li className="rounded-xl border border-border bg-card/60 p-6 text-sm text-muted-foreground">
               Inga anslutningar registrerade.
             </li>
@@ -138,7 +156,7 @@ function IntegrationsPage() {
 
       <section aria-label="Adminchecklista för LinkedIn" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">Adminchecklista — LinkedIn OAuth & publicering</h2>
+          <h2 className="text-lg font-semibold">LinkedIn — det som krävs för riktig publicering</h2>
           <Button asChild size="sm" variant="outline">
             <a href="https://www.linkedin.com/developers/apps" target="_blank" rel="noreferrer">
               LinkedIn Developer
@@ -155,8 +173,8 @@ function IntegrationsPage() {
           ))}
         </ol>
         <p className="text-xs text-muted-foreground">
-          Film Studio använder LinkedIn Posts API. Fram till att OAuth och token verkligen är
-          verifierade står kön som SCHEDULED — CONNECTION REQUIRED och inget publiceras externt.
+          Verifierad LinkedIn-historik kan visas utan publish-token. Extern publicering förblir
+          blockerad tills rätt OAuth-identitet, scope och Worker-runtime är verifierade.
         </p>
       </section>
     </div>
