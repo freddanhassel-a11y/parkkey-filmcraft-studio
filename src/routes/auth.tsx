@@ -9,7 +9,7 @@ const COREOS_AUTH_URL = "https://core.parkkey.org/auth";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { next?: string } =>
-    typeof search.next === "string" ? { next: search.next } : {},
+    typeof search["next"] === "string" ? { next: search["next"] } : {},
   head: () => ({
     meta: [
       { title: "CoreOS-inloggning — ParkKey™ Film Studio" },
@@ -63,7 +63,9 @@ function AuthPage() {
         if (error) throw error;
         if (data.session) {
           const verified = await parkkeyAuth.auth.getUser();
-          if (verified.error || !verified.data.user) throw verified.error ?? new Error("CoreOS-sessionen kunde inte verifieras.");
+          if (verified.error || !verified.data.user) {
+            throw verified.error ?? new Error("CoreOS-sessionen kunde inte verifieras.");
+          }
           if (active) await navigate({ href: targetPath, replace: true });
           return;
         }
