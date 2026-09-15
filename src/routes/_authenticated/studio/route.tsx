@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
 import {
+  BarChart3,
   Boxes,
   CalendarClock,
   Clapperboard,
@@ -33,6 +34,7 @@ const NAV = [
   { to: "/studio/new", label: "Ny film", icon: Plus, exact: false },
   { to: "/studio/social", label: "Social Creative", icon: ImageIcon, exact: false },
   { to: "/studio/linkedin", label: "LinkedIn", icon: Linkedin, exact: false },
+  { to: "/studio/linkedin-history", label: "LinkedIn History", icon: BarChart3, exact: false },
   { to: "/studio/media", label: "Mediabibliotek", icon: Boxes, exact: false },
   { to: "/studio/customers", label: "Kundmaterial", icon: Handshake, exact: false },
   { to: "/studio/assets", label: "Leveranser", icon: PackageCheck, exact: false },
