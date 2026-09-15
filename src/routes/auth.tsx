@@ -8,6 +8,8 @@ import { StudioWordmark } from "@/components/studio/brand";
 const COREOS_AUTH_URL = "https://core.parkkey.org/auth";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>): { next?: string } =>
+    typeof search.next === "string" ? { next: search.next } : {},
   head: () => ({
     meta: [
       { title: "CoreOS-inloggning — ParkKey™ Film Studio" },
@@ -21,6 +23,10 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+function safeStudioPath(next?: string) {
+  return next && next.startsWith("/studio") && !next.startsWith("//") ? next : "/studio";
+}
+
 function handoffTokens() {
   if (typeof window === "undefined" || !window.location.hash) return null;
   const params = new URLSearchParams(window.location.hash.slice(1));
@@ -29,13 +35,15 @@ function handoffTokens() {
   return accessToken && refreshToken ? { access_token: accessToken, refresh_token: refreshToken } : null;
 }
 
-function coreosLoginUrl() {
-  const returnUrl = `${window.location.origin}${window.location.pathname}${window.location.search}`;
+function coreosLoginUrl(targetPath: string) {
+  const returnUrl = new URL(targetPath, window.location.origin).toString();
   return `${COREOS_AUTH_URL}?next=${encodeURIComponent(returnUrl)}`;
 }
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { next } = Route.useSearch();
+  const targetPath = safeStudioPath(next);
   const [status, setStatus] = useState("Verifierar CoreOS-session…");
 
   useEffect(() => {
@@ -48,7 +56,7 @@ function AuthPage() {
           setStatus("Tar emot säker CoreOS-session…");
           const { error } = await parkkeyAuth.auth.setSession(handoff);
           if (error) throw error;
-          window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+          window.history.replaceState(null, "", `/auth?next=${encodeURIComponent(targetPath)}`);
         }
 
         const { data, error } = await parkkeyAuth.auth.getSession();
@@ -56,23 +64,23 @@ function AuthPage() {
         if (data.session) {
           const verified = await parkkeyAuth.auth.getUser();
           if (verified.error || !verified.data.user) throw verified.error ?? new Error("CoreOS-sessionen kunde inte verifieras.");
-          if (active) await navigate({ to: "/studio", replace: true });
+          if (active) await navigate({ href: targetPath, replace: true });
           return;
         }
 
         setStatus("Ingen Studio-inloggning behövs. Öppnar CoreOS…");
-        window.location.replace(coreosLoginUrl());
+        window.location.replace(coreosLoginUrl(targetPath));
       } catch (error) {
         console.error("[Film Studio SSO] handoff failed", error);
         setStatus("CoreOS-sessionen kunde inte verifieras. Öppnar CoreOS på nytt…");
-        window.setTimeout(() => window.location.replace(coreosLoginUrl()), 900);
+        window.setTimeout(() => window.location.replace(coreosLoginUrl(targetPath)), 900);
       }
     })();
 
     return () => {
       active = false;
     };
-  }, [navigate]);
+  }, [navigate, targetPath]);
 
   return (
     <main className="surface-cinematic flex min-h-screen items-center justify-center px-4 py-12">
