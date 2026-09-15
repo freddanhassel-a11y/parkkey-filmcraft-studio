@@ -72,13 +72,26 @@ export const listMedia = createServerFn({ method: "GET" })
         .from("media_assets")
         .select("*")
         .is("archived_at", null)
+        .order("source_created_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false }),
       context.db.from("media_versions").select("*").order("created_at", { ascending: false }),
       context.db.from("film_projects").select("id,title,status").order("title"),
     ]);
     if (assets.error) throw new Error(assets.error.message);
+
+    const enrichedAssets = await Promise.all(
+      (assets.data ?? []).map(async (asset) => {
+        let preview_url: string | null = null;
+        if (asset.storage_path) {
+          const signed = await context.db.storage.from(BUCKET).createSignedUrl(asset.storage_path, 60 * 30);
+          if (!signed.error && signed.data?.signedUrl) preview_url = signed.data.signedUrl;
+        }
+        return { ...asset, preview_url };
+      }),
+    );
+
     return {
-      assets: assets.data ?? [],
+      assets: enrichedAssets,
       versions: versions.data ?? [],
       projects: projects.data ?? [],
     };
@@ -96,10 +109,6 @@ export const listArchivedMedia = createServerFn({ method: "GET" })
     return data ?? [];
   });
 
-/**
- * Ger webbläsaren en tidsbegränsad, signerad uppladdningsadress till den privata
- * bucketen. Filen laddas aldrig upp via en publik URL och bucketen är stängd.
- */
 export const createUploadTarget = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
   .validator((d: { fileName: string; mimeType: string; size: number }) => d)
@@ -174,17 +183,11 @@ export const registerMediaAsset = createServerFn({ method: "POST" })
       created_by: context.userId,
     });
 
-    await logAudit(
-      context.db,
-      context,
-      "media.upload",
-      { type: "media_asset", id: row.id },
-      {
-        name: row.name,
-        kind,
-        size: data.file_size,
-      },
-    );
+    await logAudit(context.db, context, "media.upload", { type: "media_asset", id: row.id }, {
+      name: row.name,
+      kind,
+      size: data.file_size,
+    });
     return row;
   });
 
@@ -204,10 +207,7 @@ export const addMediaVersion = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     validateFile(data.mime_type, Number(data.file_size));
-    const existing = await context.db
-      .from("media_versions")
-      .select("id")
-      .eq("asset_id", data.asset_id);
+    const existing = await context.db.from("media_versions").select("id").eq("asset_id", data.asset_id);
     const label = `V${(existing.data?.length ?? 0) + 1}`;
     const { data: row, error } = await context.db
       .from("media_versions")
@@ -239,15 +239,9 @@ export const addMediaVersion = createServerFn({ method: "POST" })
       })
       .eq("id", data.asset_id);
 
-    await logAudit(
-      context.db,
-      context,
-      "media.version",
-      { type: "media_asset", id: data.asset_id },
-      {
-        version: label,
-      },
-    );
+    await logAudit(context.db, context, "media.version", { type: "media_asset", id: data.asset_id }, {
+      version: label,
+    });
     return row;
   });
 
@@ -272,19 +266,7 @@ export const updateMediaAsset = createServerFn({ method: "POST" })
     if (rest.approval_status && !MEDIA_APPROVAL.includes(rest.approval_status as never)) {
       throw new Error("Ogiltig sanningsstatus.");
     }
-    const patch = Object.fromEntries(
-      Object.entries(rest).filter(([, v]) => v !== undefined),
-    ) as Partial<{
-      name: string;
-      category: string;
-      tags: string[];
-      usage_rights: string | null;
-      source_notes: string | null;
-      approval_status: string;
-      film_project_id: string | null;
-      campaign: string | null;
-      notes: string | null;
-    }>;
+    const patch = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined));
     const { data: row, error } = await context.db
       .from("media_assets")
       .update(patch)
@@ -305,19 +287,12 @@ export const archiveMediaAsset = createServerFn({ method: "POST" })
       .update({ archived_at: data.restore ? null : new Date().toISOString() })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
-    await logAudit(
-      context.db,
-      context,
-      "media.archive",
-      { type: "media_asset", id: data.id },
-      {
-        restore: Boolean(data.restore),
-      },
-    );
+    await logAudit(context.db, context, "media.archive", { type: "media_asset", id: data.id }, {
+      restore: Boolean(data.restore),
+    });
     return { ok: true };
   });
 
-/** Signerad, tidsbegränsad länk för förhandsvisning eller nedladdning. Inga publika filer. */
 export const getMediaLink = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
   .validator((d: { path: string; download?: boolean; expiresIn?: number }) => d)
@@ -327,16 +302,10 @@ export const getMediaLink = createServerFn({ method: "POST" })
       .from(BUCKET)
       .createSignedUrl(data.path, expiresIn, data.download ? { download: true } : undefined);
     if (error || !signed) throw new Error(error?.message ?? "Kunde inte skapa länk.");
-    await logAudit(
-      context.db,
-      context,
-      "media.preview",
-      { type: "storage_object" },
-      {
-        path: data.path,
-        download: Boolean(data.download),
-        expiresIn,
-      },
-    );
+    await logAudit(context.db, context, "media.preview", { type: "storage_object" }, {
+      path: data.path,
+      download: Boolean(data.download),
+      expiresIn,
+    });
     return { url: signed.signedUrl, expiresIn };
   });

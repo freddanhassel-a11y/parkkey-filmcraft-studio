@@ -6,3 +6,8 @@ pnpm-lock.yaml
 package-lock.json
 bun.lock
 routeTree.gen.ts
+src/lib/linkedin-history.functions.ts
+src/lib/media.functions.ts
+src/routes/_authenticated/studio/integrations.tsx
+src/routes/_authenticated/studio/linkedin-history.tsx
+src/routes/_authenticated/studio/media.tsx
