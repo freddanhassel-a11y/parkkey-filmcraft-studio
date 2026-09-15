@@ -3,7 +3,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
 import { logAudit } from "./audit";
 import { getLinkedInCapabilityFromCoreos } from "./linkedin-capability";
-import { getLinkedInRuntimeReadiness, publishLinkedInTextPost } from "./linkedin.server";
+import {
+  getLinkedInCurrentMemberIdentity,
+  getLinkedInRuntimeReadiness,
+  publishLinkedInTextPost,
+} from "./linkedin.server";
 
 function safeErrorMessage(error: unknown): string {
   const value = error instanceof Error ? error.message : "Okänt LinkedIn-fel";
@@ -57,13 +61,6 @@ export const prepareLinkedInManualHandoff = createServerFn({ method: "POST" })
     };
   });
 
-/**
- * Explicit external-send gate for LinkedIn.
- *
- * The caller must pass confirmed=true from a deliberate UI confirmation. This
- * function never downgrades an attached-media post to text-only: media remains
- * blocked until a verified LinkedIn media-upload adapter exists.
- */
 export const publishConfirmedLinkedInPost = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
   .validator(
@@ -113,32 +110,41 @@ export const publishConfirmedLinkedInPost = createServerFn({ method: "POST" })
       };
     }
 
-    const capability = await getLinkedInCapabilityFromCoreos(context.coreos);
     const runtime = getLinkedInRuntimeReadiness();
-    if (!capability.publishCapable || !capability.resourceId || !runtime.configured) {
+    if (!runtime.configured) {
       await context.db.from("publish_attempts").insert({
         post_id: data.post_id,
         schedule_id: data.schedule_id ?? null,
         provider: "linkedin",
         status: "BLOCKED — CONNECTION REQUIRED",
-        error_message: `${capability.note} ${runtime.note}`.slice(0, 900),
+        error_message: runtime.note.slice(0, 900),
         attempted_by: context.userId,
       });
       return {
         published: false,
-        message: "LinkedIn är inte komplett verifierat för extern publicering. Inget publicerades.",
+        message: "LinkedIn-token saknas i produktion. Inget publicerades.",
       };
     }
 
+    const capability = await getLinkedInCapabilityFromCoreos(context.coreos);
     const commentary =
       (data.language === "en" ? post.copy_en : post.copy_sv) || post.copy_sv || post.copy_en || "";
     if (!commentary.trim()) throw new Error("LINKEDIN_COPY_REQUIRED");
 
     try {
-      const result = await publishLinkedInTextPost({
-        authorUrn: capability.resourceId,
-        commentary,
-      });
+      let authorUrn: string;
+      let principalSource: "coreos" | "linkedin-current-member";
+
+      if (capability.publishCapable && capability.resourceId) {
+        authorUrn = capability.resourceId;
+        principalSource = "coreos";
+      } else {
+        const member = await getLinkedInCurrentMemberIdentity();
+        authorUrn = member.urn;
+        principalSource = "linkedin-current-member";
+      }
+
+      const result = await publishLinkedInTextPost({ authorUrn, commentary });
 
       const { error: attemptError } = await context.db.from("publish_attempts").insert({
         post_id: data.post_id,
@@ -174,8 +180,9 @@ export const publishConfirmedLinkedInPost = createServerFn({ method: "POST" })
           provider: "linkedin",
           provider_post_urn: result.postUrn,
           provider_status: result.status,
-          linkedin_principal: capability.observedPrincipal,
-          linkedin_resource_id: capability.resourceId,
+          linkedin_principal: authorUrn,
+          principal_source: principalSource,
+          capability_state: capability.state,
           granted_scopes: capability.grantedScopes,
         },
       );
