@@ -9,9 +9,7 @@ const COREOS_AUTH_URL = "https://core.parkkey.org/auth";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { next?: string } =>
-    typeof search["next"] === "string"
-      ? { next: search["next"] }
-      : {},
+    typeof search["next"] === "string" ? { next: search["next"] } : {},
   head: () => ({
     meta: [
       { title: "CoreOS-inloggning — ParkKey™ Film Studio" },
