@@ -71,6 +71,15 @@ export const getVideoRenderPipeline = createServerFn({ method: "POST" })
         note: "Videorenderaren är markerad som ansluten men saknar verifieringstid.",
         verifiedAt: null,
       };
+    } else if (row?.status === "CONFIGURED") {
+      providerState = {
+        state: "MANUAL CHECK",
+        provider: row.provider,
+        note:
+          row.notes ??
+          "Manual render fallback är konfigurerad. Registrera en verklig extern MP4 efter godkänd QA.",
+        verifiedAt: row.verified_at ?? null,
+      };
     }
 
     const master = (renders.data ?? []).find(

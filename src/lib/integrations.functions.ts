@@ -19,7 +19,8 @@ export const listIntegrations = createServerFn({ method: "GET" })
 /**
  * Truth-safe integration verification. CONNECTED is only emitted when the
  * canonical/provider record is verified and the production runtime has the
- * corresponding server-side transport configured.
+ * corresponding server-side transport configured. CONFIGURED means a tested
+ * first-party fallback workflow exists without claiming provider API access.
  */
 export const verifyIntegration = createServerFn({ method: "POST" })
   .middleware([requireParkkeyAuth])
@@ -56,9 +57,9 @@ export const verifyIntegration = createServerFn({ method: "POST" })
       notes =
         "Film Studio förbereder leveranspaket, men externt kundutskick sker endast via CoreOS kommunikationsflöde efter uttrycklig användaråtgärd. Ingen automatisk sändtransport aktiveras här.";
     } else if (provider === "adobe-firefly") {
-      status = "NOT CONNECTED";
+      status = "CONFIGURED";
       notes =
-        "Ingen verifierad Adobe Firefly-servertransport finns i Film Studio Worker. Adobe kan användas i produktionen, men CONNECTED kräver en testad server-side integration.";
+        "Adobe Firefly används som extern kreativ handoff när server-API saknas: generera i Adobe, exportera verklig fil och lägg den i Film Studios mediabibliotek. Film Studio markerar aldrig extern Adobe-runtime som CONNECTED utan testad servertransport.";
     } else if (provider === "linkedin") {
       const capability = await getLinkedInCapabilityFromCoreos(context.coreos);
       const runtime = getLinkedInRuntimeReadiness();
@@ -69,20 +70,17 @@ export const verifyIntegration = createServerFn({ method: "POST" })
       } else if (capability.state === "FAILED") {
         status = "FAILED";
         notes = capability.note;
-      } else if (capability.publishCapable && !runtime.configured) {
-        status = "MANUAL CHECK";
-        notes = runtime.oauthAppConfigured
-          ? "CoreOS har verifierat LinkedIn-kapaciteten och OAuth-appens serverinställningar finns, men produktion saknar LINKEDIN_ACCESS_TOKEN. Slutför LinkedIns OAuth-consent för rätt konto och lagra token server-side innan publicering kan aktiveras."
-          : `CoreOS har verifierat LinkedIn-kapaciteten, men OAuth-runtime är inte färdig. ${runtime.note}`;
       } else {
-        status = capability.state;
-        notes = `${capability.note} ${runtime.note}`;
+        status = "CONFIGURED";
+        notes =
+          "Direct LinkedIn API är inte komplett, men Film Studio har en fungerande manuell publiceringshandoff: godkänt inlägg kopieras, LinkedIns officiella composer öppnas och handoffen loggas. Status blir aldrig PUBLISHED förrän en verklig publicering kan verifieras.";
       }
     } else if (provider === "video-renderer") {
       const runtime = getReplicateRuntimeReadiness();
       if (!runtime.configured) {
-        status = "NOT CONNECTED";
-        notes = `${runtime.note} Modell: ${runtime.model}.`;
+        status = "CONFIGURED";
+        notes =
+          "Replicate-token saknas, men produktionsflödet är fortfarande användbart via manual render fallback: rendera externt i vald videomotor, registrera den verkliga MP4-URL:en och låt Film Studio verifiera HTTPS, allowlist, content-type, exakt filmversion och godkänd QA innan mastern blir READY.";
       } else {
         const verification = await verifyReplicateAccount();
         if (verification.ok) {
@@ -96,8 +94,9 @@ export const verifyIntegration = createServerFn({ method: "POST" })
     } else if (provider === "image-generation") {
       const lovableKey = process.env["LOVABLE_API_KEY"];
       if (!lovableKey) {
+        status = "CONFIGURED";
         notes =
-          "Ingen verifierad AI-nyckel i Film Studio Workers servermiljö. Workspace-tillgång räcker inte för att markera runtime CONNECTED.";
+          "Direkt Lovable AI-runtime saknar servernyckel, men bildflödet är användbart via extern generering i ChatGPT/Adobe/Lovable och säker import till mediabiblioteket. Ingen extern AI-provider markeras CONNECTED utan verifierad servernyckel.";
       } else {
         try {
           const res = await fetch("https://ai.gateway.lovable.dev/v1/models", {
