@@ -57,7 +57,8 @@ function MembershipGate({ children }: { children: React.ReactNode }) {
               : `Kontot ${accountLabel} är inte godkänt i ParkKey-teamet. Be en administratör förbereda e-postadressen i CoreOS.`}
         </p>
         <p className="mt-4 text-xs text-muted-foreground">
-          Film Studio har ingen separat inloggning eller lösenordssetup. CoreOS-identiteten och approved team_members är enda åtkomstgrinden.
+          Film Studio har ingen separat inloggning eller lösenordssetup. CoreOS-identiteten och
+          approved team_members är enda åtkomstgrinden.
         </p>
         <Button variant="outline" className="mt-6" onClick={() => void signOut()}>
           Logga ut från ParkKey
