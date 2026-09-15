@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, prettier/prettier */
 import { createServerFn } from "@tanstack/react-start";
 
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
