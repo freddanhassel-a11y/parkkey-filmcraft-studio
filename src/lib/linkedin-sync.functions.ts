@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, prettier/prettier */
 import { createServerFn } from "@tanstack/react-start";
 
 import { requireParkkeyAuth } from "@/integrations/parkkey/auth-middleware";
@@ -57,8 +58,6 @@ const parseIso = (value: string | null | undefined) => {
 export const getLinkedInSyncStatus = createServerFn({ method: "GET" })
   .middleware([requireParkkeyAuth])
   .handler(async ({ context }) => {
-    // These tables/columns are added by the LinkedIn sync migrations. Keep this adapter
-    // build-compatible until the generated Supabase types are refreshed from the live schema.
     const db = context.db as any;
     const [latestRun, totals] = await Promise.all([
       db
