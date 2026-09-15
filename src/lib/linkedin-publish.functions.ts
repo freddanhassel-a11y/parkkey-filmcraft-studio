@@ -10,6 +10,49 @@ function safeErrorMessage(error: unknown): string {
   return value.slice(0, 900);
 }
 
+export const prepareLinkedInManualHandoff = createServerFn({ method: "POST" })
+  .middleware([requireParkkeyAuth])
+  .validator((d: { post_id: string; language?: "sv" | "en" }) => d)
+  .handler(async ({ data, context }) => {
+    const { data: post, error } = await context.db
+      .from("social_posts")
+      .select("id,status,network,copy_sv,copy_en")
+      .eq("id", data.post_id)
+      .single();
+    if (error) throw new Error(error.message);
+    if (post.network !== "LinkedIn") throw new Error("LINKEDIN_POST_REQUIRED");
+    if (post.status !== "APPROVED" && !post.status.startsWith("SCHEDULED")) {
+      throw new Error("LINKEDIN_POST_MUST_BE_APPROVED");
+    }
+
+    const copy =
+      (data.language === "en" ? post.copy_en : post.copy_sv) || post.copy_sv || post.copy_en || "";
+    if (!copy.trim()) throw new Error("LINKEDIN_COPY_REQUIRED");
+
+    await context.db.from("publish_attempts").insert({
+      post_id: data.post_id,
+      schedule_id: null,
+      provider: "linkedin-manual-handoff",
+      status: "MANUAL HANDOFF — READY",
+      error_message: null,
+      attempted_by: context.userId,
+    });
+    await logAudit(
+      context.db,
+      context,
+      "social.publish.manual_handoff",
+      { type: "social_post", id: data.post_id },
+      { provider: "linkedin", destination: "linkedin_official_composer" },
+    );
+
+    return {
+      copy,
+      composerUrl: "https://www.linkedin.com/feed/?shareActive=true",
+      message:
+        "Texten är klar för manuell publicering. Film Studio loggar handoffen men markerar inte inlägget som PUBLISHED utan verifierat LinkedIn-svar.",
+    };
+  });
+
 /**
  * Explicit external-send gate for LinkedIn.
  *
