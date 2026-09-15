@@ -1,34 +1,75 @@
 name: Deploy Film Studio Worker
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["Film Studio CI"]
+    types: [completed]
   workflow_dispatch:
+    inputs:
+      verified_sha:
+        description: "Exact Film Studio commit SHA to redeploy. It must already have a successful Film Studio CI run and belong to main."
+        required: true
+        type: string
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: filmstudio-worker-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   WORKERS_URL: https://parkkey-filmcraft-studio.parkkey-coreos-nordic-2026.workers.dev
 
 jobs:
   deploy:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.head_branch == 'main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      TARGET_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.verified_sha }}
     steps:
-      - name: Checkout Film Studio main
+      - name: Checkout exact verified Film Studio commit
         uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 0
 
-      - name: Record source revision
+      - name: Verify deployment provenance
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          echo "FILM_STUDIO_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-          echo "Deploying Film Studio source $(git rev-parse HEAD)"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$TARGET_SHA" || {
+            echo "::error::Checkout ${actual} does not match requested verified SHA ${TARGET_SHA}"
+            exit 1
+          }
+
+          git fetch origin main --quiet
+          git merge-base --is-ancestor "$TARGET_SHA" origin/main || {
+            echo "::error::Film Studio SHA ${TARGET_SHA} is not contained in main. Refusing production deploy."
+            exit 1
+          }
+
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${TARGET_SHA}&per_page=100" > /tmp/filmstudio-runs.json
+            jq -e --arg sha "$TARGET_SHA" '
+              .workflow_runs
+              | any(.name == "Film Studio CI" and .head_sha == $sha and .conclusion == "success")
+            ' /tmp/filmstudio-runs.json >/dev/null || {
+              echo "::error::Manual deploy refused: no successful Film Studio CI run exists for ${TARGET_SHA}."
+              exit 1
+            }
+          fi
+
+          echo "FILM_STUDIO_SHA=${TARGET_SHA}" >> "$GITHUB_ENV"
+          echo "Production provenance verified for Film Studio ${TARGET_SHA}."
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
