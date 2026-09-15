@@ -40,9 +40,13 @@ export const prepareLinkedInManualHandoff = createServerFn({ method: "POST" })
     await logAudit(
       context.db,
       context,
-      "social.publish.manual_handoff",
+      "social.publish.attempt",
       { type: "social_post", id: data.post_id },
-      { provider: "linkedin", destination: "linkedin_official_composer" },
+      {
+        provider: "linkedin",
+        mode: "manual_handoff",
+        destination: "linkedin_official_composer",
+      },
     );
 
     return {
