@@ -16,28 +16,6 @@ export const listIntegrations = createServerFn({ method: "GET" })
     return { legacy: legacy.data ?? [], connections: connections.data ?? [] };
   });
 
-async function verifyCoreosBridge(context: { db: any }) {
-  const [members, films, media, social] = await Promise.all([
-    context.db.from("team_members").select("id", { count: "exact", head: true }).eq("status", "approved"),
-    context.db.from("film_projects").select("id", { count: "exact", head: true }),
-    context.db.from("media_assets").select("id", { count: "exact", head: true }),
-    context.db.from("social_posts").select("id", { count: "exact", head: true }),
-  ]);
-
-  const firstError = [members.error, films.error, media.error, social.error].find(Boolean);
-  if (firstError) {
-    return {
-      status: "FAILED",
-      notes: `Gemensamma CoreOS-backenden kunde inte verifieras: ${firstError.message}`,
-    };
-  }
-
-  return {
-    status: "CONNECTED",
-    notes: `Verifierad gemensam CoreOS-backend: ${members.count ?? 0} godkända teammedlemmar, ${films.count ?? 0} filmprojekt, ${media.count ?? 0} media-assets och ${social.count ?? 0} sociala poster. Samma RLS/team_members används i Studio och CoreOS.`,
-  };
-}
-
 /**
  * Truth-safe integration verification. CONNECTED is only emitted when the
  * canonical/provider record is verified and the production runtime has the
@@ -52,9 +30,23 @@ export const verifyIntegration = createServerFn({ method: "POST" })
     let notes = "Ingen verifierad anslutning hittades i serverns miljö.";
 
     if (provider === "coreos-bridge") {
-      const result = await verifyCoreosBridge(context);
-      status = result.status;
-      notes = result.notes;
+      const [members, films, media, social] = await Promise.all([
+        context.db
+          .from("team_members")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "approved"),
+        context.db.from("film_projects").select("id", { count: "exact", head: true }),
+        context.db.from("media_assets").select("id", { count: "exact", head: true }),
+        context.db.from("social_posts").select("id", { count: "exact", head: true }),
+      ]);
+      const firstError = [members.error, films.error, media.error, social.error].find(Boolean);
+      if (firstError) {
+        status = "FAILED";
+        notes = `Gemensamma CoreOS-backenden kunde inte verifieras: ${firstError.message}`;
+      } else {
+        status = "CONNECTED";
+        notes = `Verifierad gemensam CoreOS-backend: ${members.count ?? 0} godkända teammedlemmar, ${films.count ?? 0} filmprojekt, ${media.count ?? 0} media-assets och ${social.count ?? 0} sociala poster. Samma RLS/team_members används i Studio och CoreOS.`;
+      }
     } else if (provider === "manual-upload") {
       status = "CONFIGURED";
       notes =
