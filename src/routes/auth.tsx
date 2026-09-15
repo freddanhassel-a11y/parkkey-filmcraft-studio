@@ -9,13 +9,16 @@ const COREOS_AUTH_URL = "https://core.parkkey.org/auth";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { next?: string } =>
-    typeof search["next"] === "string" ? { next: search["next"] } : {},
+    typeof search["next"] === "string"
+      ? { next: search["next"] }
+      : {},
   head: () => ({
     meta: [
       { title: "CoreOS-inloggning — ParkKey™ Film Studio" },
       {
         name: "description",
-        content: "Film Studio använder endast ParkKey CoreOS-inloggningen och godkänt teammedlemskap.",
+        content:
+          "Film Studio använder endast ParkKey CoreOS-inloggningen och godkänt teammedlemskap.",
       },
       { name: "robots", content: "noindex,nofollow,noarchive" },
     ],
@@ -32,7 +35,9 @@ function handoffTokens() {
   const params = new URLSearchParams(window.location.hash.slice(1));
   const accessToken = params.get("pk_access_token");
   const refreshToken = params.get("pk_refresh_token");
-  return accessToken && refreshToken ? { access_token: accessToken, refresh_token: refreshToken } : null;
+  return accessToken && refreshToken
+    ? { access_token: accessToken, refresh_token: refreshToken }
+    : null;
 }
 
 function coreosLoginUrl(targetPath: string) {
@@ -94,7 +99,9 @@ function AuthPage() {
         </p>
         <p className="mt-6 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
           <ShieldCheck aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-          Film Studio har inget separat lösenord, ingen separat kontoaktivering och ingen egen lösenordsåterställning. Åtkomst kräver en giltig CoreOS-session och godkänt ParkKey-teammedlemskap.
+          Film Studio har inget separat lösenord, ingen separat kontoaktivering och ingen egen
+          lösenordsåterställning. Åtkomst kräver en giltig CoreOS-session och godkänt
+          ParkKey-teammedlemskap.
         </p>
       </div>
     </main>
