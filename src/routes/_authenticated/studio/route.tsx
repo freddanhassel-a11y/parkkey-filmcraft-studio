@@ -107,7 +107,8 @@ function StudioLayout() {
       <footer className="mx-auto max-w-7xl px-4 pb-10 text-xs text-muted-foreground sm:px-6">
         <p className="flex items-center gap-2">
           <LibraryBig aria-hidden="true" className="size-3.5" />
-          CoreOS Studio använder samma ParkKey-regler, identitet, kunder och materialdata som övriga CoreOS.
+          CoreOS Studio använder samma ParkKey-regler, identitet, kunder och materialdata som övriga
+          CoreOS.
         </p>
       </footer>
     </div>
