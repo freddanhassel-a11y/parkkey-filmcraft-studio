@@ -11,8 +11,15 @@ export type LinkedInRuntimeReadiness = {
   note: string;
 };
 
+export type LinkedInMemberIdentity = {
+  id: string;
+  urn: string;
+};
+
 const LINKEDIN_POSTS_URL = "https://api.linkedin.com/rest/posts";
+const LINKEDIN_ME_URL = "https://api.linkedin.com/v2/me";
 const URN_RE = /^urn:li:(person|organization):[A-Za-z0-9_-]+$/;
+const MEMBER_ID_RE = /^[A-Za-z0-9_-]+$/;
 
 function env(name: string): string | null {
   const value = process.env[name]?.trim();
@@ -29,6 +36,12 @@ function redactProviderText(value: string): string {
     .replace(/"access_token"\s*:\s*"[^"]+"/gi, '"access_token":"[REDACTED]"')
     .replace(/"refresh_token"\s*:\s*"[^"]+"/gi, '"refresh_token":"[REDACTED]"')
     .slice(0, 800);
+}
+
+function requireAccessToken(): string {
+  const token = env("LINKEDIN_ACCESS_TOKEN");
+  if (!token) throw new Error("LINKEDIN_CONNECTION_REQUIRED");
+  return token;
 }
 
 export function getLinkedInRuntimeReadiness(): LinkedInRuntimeReadiness {
@@ -50,11 +63,35 @@ export function getLinkedInRuntimeReadiness(): LinkedInRuntimeReadiness {
     apiVersion: apiVersion(),
     missingEnvironment,
     note: token
-      ? "Server-side LinkedIn Posts API transport is configured. CONNECTED still requires verified CoreOS capability and a real provider response."
+      ? "Server-side LinkedIn transport is configured. Film Studio verifies the authenticated member directly with LinkedIn before publishing."
       : oauthAppConfigured
         ? "LinkedIn OAuth-appens serverinställningar finns, men LINKEDIN_ACCESS_TOKEN saknas. Slutför LinkedIns member-consent och lagra token server-side innan publicering aktiveras."
         : `LinkedIn OAuth är inte färdigkonfigurerat server-side. Saknas: ${missingEnvironment.join(", ")}.`,
   };
+}
+
+export async function getLinkedInCurrentMemberIdentity(): Promise<LinkedInMemberIdentity> {
+  const token = requireAccessToken();
+  const response = await fetch(LINKEDIN_ME_URL, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Restli-Protocol-Version": "2.0.0",
+    },
+  });
+
+  if (!response.ok) {
+    const providerBody = redactProviderText(await response.text().catch(() => ""));
+    throw new Error(
+      `LINKEDIN_IDENTITY_FAILED:${response.status}:${providerBody || "No provider error body"}`,
+    );
+  }
+
+  const body = (await response.json()) as { id?: unknown };
+  const id = typeof body.id === "string" ? body.id.trim() : "";
+  if (!id || !MEMBER_ID_RE.test(id)) throw new Error("LINKEDIN_INVALID_MEMBER_ID");
+
+  return { id, urn: `urn:li:person:${id}` };
 }
 
 /**
@@ -62,7 +99,7 @@ export function getLinkedInRuntimeReadiness(): LinkedInRuntimeReadiness {
  *
  * This adapter is intentionally fail-closed:
  * - access token is server-only;
- * - author must be a person/organization URN already verified by CoreOS;
+ * - author must be a validated LinkedIn person/organization URN;
  * - success requires HTTP 201 AND LinkedIn's x-restli-id response header;
  * - media is not silently omitted; callers must block media posts until a media
  *   upload adapter is implemented.
@@ -71,8 +108,7 @@ export async function publishLinkedInTextPost(input: {
   authorUrn: string;
   commentary: string;
 }): Promise<LinkedInPublishResult> {
-  const token = env("LINKEDIN_ACCESS_TOKEN");
-  if (!token) throw new Error("LINKEDIN_CONNECTION_REQUIRED");
+  const token = requireAccessToken();
 
   const authorUrn = input.authorUrn.trim();
   if (!URN_RE.test(authorUrn)) throw new Error("LINKEDIN_INVALID_AUTHOR_URN");
