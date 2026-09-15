@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     const { data, error } = await parkkeyAuth.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
+    if (error || !data.user) {
+      const next = `${location.pathname}${location.searchStr || ""}`;
+      throw redirect({ to: "/auth", search: { next } });
+    }
     return { user: data.user };
   },
   component: () => (
