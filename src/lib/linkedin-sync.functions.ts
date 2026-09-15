@@ -57,14 +57,17 @@ const parseIso = (value: string | null | undefined) => {
 export const getLinkedInSyncStatus = createServerFn({ method: "GET" })
   .middleware([requireParkkeyAuth])
   .handler(async ({ context }) => {
+    // These tables/columns are added by the LinkedIn sync migrations. Keep this adapter
+    // build-compatible until the generated Supabase types are refreshed from the live schema.
+    const db = context.db as any;
     const [latestRun, totals] = await Promise.all([
-      context.db
+      db
         .from("linkedin_sync_runs")
         .select("*")
         .order("started_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      context.db
+      db
         .from("social_posts")
         .select("id,linkedin_post_id,sync_confidence,metrics_status,last_synced_at", {
           count: "exact",
@@ -79,9 +82,9 @@ export const getLinkedInSyncStatus = createServerFn({ method: "GET" })
     return {
       latestRun: latestRun.data ?? null,
       totalLinkedInRows: totals.count ?? rows.length,
-      verifiedPosts: rows.filter((row) => Boolean(row.linkedin_post_id)).length,
-      assetOnlyRows: rows.filter((row) => row.sync_confidence === "ASSET_ONLY").length,
-      verifiedMetricsRows: rows.filter((row) =>
+      verifiedPosts: rows.filter((row: any) => Boolean(row.linkedin_post_id)).length,
+      assetOnlyRows: rows.filter((row: any) => row.sync_confidence === "ASSET_ONLY").length,
+      verifiedMetricsRows: rows.filter((row: any) =>
         String(row.metrics_status ?? "").startsWith("VERIFIED"),
       ).length,
     };
@@ -94,10 +97,11 @@ export const ingestLinkedInSnapshot = createServerFn({ method: "POST" })
     if (!Array.isArray(data.posts)) throw new Error("posts måste vara en lista.");
     if (data.posts.length > 5000) throw new Error("För många poster i en synkkörning.");
 
+    const db = context.db as any;
     const source = data.source?.trim() || "linkedin_organic";
     const startedAt = new Date().toISOString();
 
-    const { data: run, error: runError } = await context.db
+    const { data: run, error: runError } = await db
       .from("linkedin_sync_runs")
       .insert({
         source,
@@ -133,7 +137,7 @@ export const ingestLinkedInSnapshot = createServerFn({ method: "POST" })
         const lastModifiedAt = parseIso(incoming.last_modified_at);
         const observedAt = new Date().toISOString();
 
-        const { data: existing, error: existingError } = await context.db
+        const { data: existing, error: existingError } = await db
           .from("social_posts")
           .select("id,title,copy_sv,linkedin_post_id")
           .eq("linkedin_post_id", postId)
@@ -185,7 +189,7 @@ export const ingestLinkedInSnapshot = createServerFn({ method: "POST" })
 
         let socialPostId: string;
         if (existing) {
-          const { data: row, error } = await context.db
+          const { data: row, error } = await db
             .from("social_posts")
             .update(patch)
             .eq("id", existing.id)
@@ -195,7 +199,7 @@ export const ingestLinkedInSnapshot = createServerFn({ method: "POST" })
           socialPostId = row.id;
           updated += 1;
         } else {
-          const { data: row, error } = await context.db
+          const { data: row, error } = await db
             .from("social_posts")
             .insert({
               ...patch,
@@ -215,7 +219,7 @@ export const ingestLinkedInSnapshot = createServerFn({ method: "POST" })
           inserted += 1;
         }
 
-        const { error: observationError } = await context.db
+        const { error: observationError } = await db
           .from("linkedin_post_observations")
           .insert({
             sync_run_id: run.id,
@@ -237,7 +241,7 @@ export const ingestLinkedInSnapshot = createServerFn({ method: "POST" })
       }
 
       const completedAt = new Date().toISOString();
-      const { error: finishError } = await context.db
+      const { error: finishError } = await db
         .from("linkedin_sync_runs")
         .update({
           completed_at: completedAt,
@@ -278,7 +282,7 @@ export const ingestLinkedInSnapshot = createServerFn({ method: "POST" })
       };
     } catch (error) {
       const failedAt = new Date().toISOString();
-      await context.db
+      await db
         .from("linkedin_sync_runs")
         .update({
           completed_at: failedAt,
