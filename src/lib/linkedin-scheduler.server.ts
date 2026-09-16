@@ -27,7 +27,9 @@ async function secretsMatch(left: string, right: string): Promise<boolean> {
   const [a, b] = await Promise.all([digest(left), digest(right)]);
   if (a.length !== b.length) return false;
   let mismatch = 0;
-  for (let i = 0; i < a.length; i += 1) mismatch |= a[i] ^ b[i];
+  a.forEach((value, index) => {
+    mismatch |= value ^ (b[index] ?? 0);
+  });
   return mismatch === 0;
 }
 
