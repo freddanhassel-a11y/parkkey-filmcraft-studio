@@ -47,6 +47,12 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const url = new URL(request.url);
+      if (url.pathname === "/api/internal/linkedin-publish") {
+        const { handleCoreosLinkedInPublish } = await import("./lib/linkedin-scheduler.server");
+        return handleCoreosLinkedInPublish(request);
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
