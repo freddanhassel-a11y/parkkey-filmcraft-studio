@@ -89,7 +89,9 @@ export async function handleCoreosLinkedInPublish(request: Request): Promise<Res
 
   try {
     let authorUrn = payload.authorUrn?.trim() ?? "";
-    if (authorUrn && !validAuthorUrn(authorUrn)) throw new Error("LINKEDIN_INVALID_AUTHOR_URN");
+    if (authorUrn && !validAuthorUrn(authorUrn)) {
+      throw new Error("LINKEDIN_INVALID_AUTHOR_URN");
+    }
     if (!authorUrn) authorUrn = (await getLinkedInCurrentMemberIdentity()).urn;
 
     let result: Awaited<ReturnType<typeof publishLinkedInTextPost>>;
@@ -102,12 +104,15 @@ export async function handleCoreosLinkedInPublish(request: Request): Promise<Res
 
       const media = await fetch(mediaUrl.toString(), { redirect: "error" });
       if (!media.ok) throw new Error(`MEDIA_FETCH_FAILED:${media.status}`);
-      const responseMime = media.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ?? "";
+      const responseMime =
+        media.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ?? "";
       if (responseMime && responseMime !== requestedMime) {
         throw new Error(`MEDIA_MIME_MISMATCH:${responseMime}:${requestedMime}`);
       }
       const length = Number(media.headers.get("content-length") ?? "0");
-      if (Number.isFinite(length) && length > MAX_IMAGE_BYTES) throw new Error("MEDIA_TOO_LARGE");
+      if (Number.isFinite(length) && length > MAX_IMAGE_BYTES) {
+        throw new Error("MEDIA_TOO_LARGE");
+      }
       const bytes = await media.arrayBuffer();
       if (bytes.byteLength <= 0 || bytes.byteLength > MAX_IMAGE_BYTES) {
         throw new Error("MEDIA_SIZE_INVALID");
@@ -136,7 +141,9 @@ export async function handleCoreosLinkedInPublish(request: Request): Promise<Res
       authorUrn,
     });
   } catch (error) {
-    const message = (error instanceof Error ? error.message : "LINKEDIN_PUBLISH_FAILED").slice(0, 900);
+    const message = (
+      error instanceof Error ? error.message : "LINKEDIN_PUBLISH_FAILED"
+    ).slice(0, 900);
     return json({ published: false, error: message }, 502);
   }
 }
