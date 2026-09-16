@@ -153,7 +153,9 @@ export async function uploadLinkedInImage(input: {
   return { imageUrn };
 }
 
-async function publishLinkedInPostBody(body: Record<string, unknown>): Promise<LinkedInPublishResult> {
+async function publishLinkedInPostBody(
+  body: Record<string, unknown>,
+): Promise<LinkedInPublishResult> {
   const token = requireAccessToken();
   const response = await fetch(LINKEDIN_POSTS_URL, {
     method: "POST",
