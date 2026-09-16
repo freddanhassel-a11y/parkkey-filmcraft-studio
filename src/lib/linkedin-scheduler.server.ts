@@ -141,9 +141,10 @@ export async function handleCoreosLinkedInPublish(request: Request): Promise<Res
       authorUrn,
     });
   } catch (error) {
-    const message = (
-      error instanceof Error ? error.message : "LINKEDIN_PUBLISH_FAILED"
-    ).slice(0, 900);
+    const message = (error instanceof Error ? error.message : "LINKEDIN_PUBLISH_FAILED").slice(
+      0,
+      900,
+    );
     return json({ published: false, error: message }, 502);
   }
 }
