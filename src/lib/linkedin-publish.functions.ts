@@ -6,8 +6,14 @@ import { getLinkedInCapabilityFromCoreos } from "./linkedin-capability";
 import {
   getLinkedInCurrentMemberIdentity,
   getLinkedInRuntimeReadiness,
+  publishLinkedInImagePost,
   publishLinkedInTextPost,
+  uploadLinkedInImage,
 } from "./linkedin.server";
+
+const MEDIA_BUCKET = "studio-media";
+const READY_MEDIA_APPROVAL = new Set(["APPROVED", "EXPORTED"]);
+const LINKEDIN_IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/gif"]);
 
 function safeErrorMessage(error: unknown): string {
   const value = error instanceof Error ? error.message : "Okänt LinkedIn-fel";
@@ -88,28 +94,6 @@ export const publishConfirmedLinkedInPost = createServerFn({ method: "POST" })
       throw new Error("LINKEDIN_POST_MUST_BE_APPROVED");
     }
 
-    const { count: attachedCount, error: assetError } = await context.db
-      .from("social_post_assets")
-      .select("media_asset_id", { count: "exact", head: true })
-      .eq("post_id", data.post_id);
-    if (assetError) throw new Error(assetError.message);
-    if ((attachedCount ?? 0) > 0) {
-      await context.db.from("publish_attempts").insert({
-        post_id: data.post_id,
-        schedule_id: data.schedule_id ?? null,
-        provider: "linkedin",
-        status: "BLOCKED — MEDIA ADAPTER REQUIRED",
-        error_message:
-          "Inlägget har bifogat media. Film Studio publicerar inte text-only i stället; LinkedIn-mediauppladdning måste vara verifierad först.",
-        attempted_by: context.userId,
-      });
-      return {
-        published: false,
-        message:
-          "Publiceringen blockerades eftersom inlägget har media och LinkedIn-mediaadaptern ännu inte är verifierad.",
-      };
-    }
-
     const runtime = getLinkedInRuntimeReadiness();
     if (!runtime.configured) {
       await context.db.from("publish_attempts").insert({
@@ -144,7 +128,71 @@ export const publishConfirmedLinkedInPost = createServerFn({ method: "POST" })
         principalSource = "linkedin-current-member";
       }
 
-      const result = await publishLinkedInTextPost({ authorUrn, commentary });
+      const links = await context.db
+        .from("social_post_assets")
+        .select("media_asset_id,alt_text")
+        .eq("post_id", data.post_id)
+        .order("sort_order", { ascending: true });
+      if (links.error) throw new Error(links.error.message);
+
+      let result: Awaited<ReturnType<typeof publishLinkedInTextPost>>;
+      if ((links.data ?? []).length > 0) {
+        const assetIds = (links.data ?? []).map((row) => row.media_asset_id);
+        const assets = await context.db
+          .from("media_assets")
+          .select("id,kind,storage_path,mime_type,approval_status,name")
+          .in("id", assetIds);
+        if (assets.error) throw new Error(assets.error.message);
+
+        const ready = (assets.data ?? []).filter(
+          (asset) =>
+            asset.kind === "image" &&
+            Boolean(asset.storage_path) &&
+            Boolean(asset.mime_type) &&
+            LINKEDIN_IMAGE_MIME.has(asset.mime_type!.toLowerCase()) &&
+            READY_MEDIA_APPROVAL.has(asset.approval_status),
+        );
+
+        if (ready.length !== 1) {
+          const reason =
+            ready.length === 0
+              ? "Inlägget saknar en godkänd JPG/PNG/GIF med riktig storage_path."
+              : "Inlägget har flera godkända bilder. Exakt en bild krävs för detta publiceringsflöde.";
+          await context.db.from("publish_attempts").insert({
+            post_id: data.post_id,
+            schedule_id: data.schedule_id ?? null,
+            provider: "linkedin",
+            status: "BLOCKED — ASSET REQUIRED",
+            error_message: reason,
+            attempted_by: context.userId,
+          });
+          return { published: false, message: reason };
+        }
+
+        const asset = ready[0];
+        const link = (links.data ?? []).find((row) => row.media_asset_id === asset.id);
+        const downloaded = await context.db.storage
+          .from(MEDIA_BUCKET)
+          .download(asset.storage_path!);
+        if (downloaded.error || !downloaded.data) {
+          throw new Error(
+            `LINKEDIN_ASSET_DOWNLOAD_FAILED:${downloaded.error?.message ?? "missing file"}`,
+          );
+        }
+        const uploaded = await uploadLinkedInImage({
+          ownerUrn: authorUrn,
+          bytes: await downloaded.data.arrayBuffer(),
+          mimeType: asset.mime_type!,
+        });
+        result = await publishLinkedInImagePost({
+          authorUrn,
+          commentary,
+          imageUrn: uploaded.imageUrn,
+          altText: link?.alt_text?.trim() || asset.name,
+        });
+      } else {
+        result = await publishLinkedInTextPost({ authorUrn, commentary });
+      }
 
       const { error: attemptError } = await context.db.from("publish_attempts").insert({
         post_id: data.post_id,
@@ -165,7 +213,10 @@ export const publishConfirmedLinkedInPost = createServerFn({ method: "POST" })
       if (data.schedule_id) {
         const { error: scheduleError } = await context.db
           .from("social_schedules")
-          .update({ status: "PUBLISHED" })
+          .update({
+            status: "PUBLISHED",
+            notes: `LinkedIn provider confirmed ${result.postUrn} with HTTP ${result.status}.`,
+          })
           .eq("id", data.schedule_id)
           .eq("post_id", data.post_id);
         if (scheduleError) throw new Error(scheduleError.message);
