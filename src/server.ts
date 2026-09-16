@@ -7,16 +7,6 @@ type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
 
-type ScheduledControllerLike = {
-  cron: string;
-  scheduledTime: number;
-  noRetry(): void;
-};
-
-type ExecutionContextLike = {
-  waitUntil(promise: Promise<unknown>): void;
-};
-
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
@@ -54,15 +44,15 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
-async function runLinkedInSchedule(scheduledTime: number) {
-  const { runDueLinkedInScheduler } = await import("./lib/linkedin-scheduler.server");
-  const result = await runDueLinkedInScheduler(new Date(scheduledTime));
-  console.log("Film Studio LinkedIn scheduler completed", result);
-}
-
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const url = new URL(request.url);
+      if (url.pathname === "/api/internal/linkedin-publish") {
+        const { handleCoreosLinkedInPublish } = await import("./lib/linkedin-scheduler.server");
+        return handleCoreosLinkedInPublish(request);
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
@@ -73,18 +63,5 @@ export default {
         headers: { "content-type": "text/html; charset=utf-8" },
       });
     }
-  },
-
-  scheduled(controller: ScheduledControllerLike, _env: unknown, ctx: ExecutionContextLike) {
-    if (controller.cron !== "*/5 * * * *") {
-      console.warn("Ignoring unknown Film Studio cron", {
-        cron: controller.cron,
-        scheduledTime: controller.scheduledTime,
-      });
-      controller.noRetry();
-      return;
-    }
-
-    ctx.waitUntil(runLinkedInSchedule(controller.scheduledTime));
   },
 };
