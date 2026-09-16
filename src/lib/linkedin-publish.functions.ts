@@ -170,6 +170,7 @@ export const publishConfirmedLinkedInPost = createServerFn({ method: "POST" })
         }
 
         const asset = ready[0];
+        if (!asset) throw new Error("LINKEDIN_ASSET_REQUIRED");
         const link = (links.data ?? []).find((row) => row.media_asset_id === asset.id);
         const downloaded = await context.db.storage
           .from(MEDIA_BUCKET)
