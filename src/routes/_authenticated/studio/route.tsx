@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import {
   BarChart3,
   Boxes,
@@ -20,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { useParkkeySession } from "@/lib/parkkey-session";
+import { ensureLinkedInAutumnSeries2026Fn } from "@/lib/linkedin-autumn-series.functions";
 import { Button } from "@/components/ui/button";
 import { StudioWordmark } from "@/components/studio/brand";
 
@@ -48,6 +51,14 @@ const NAV = [
 function StudioLayout() {
   const navigate = useNavigate();
   const { user, signOut } = useParkkeySession();
+  const ensureAutumnSeries = useServerFn(ensureLinkedInAutumnSeries2026Fn);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    void ensureAutumnSeries().catch((error: unknown) => {
+      console.error("Could not materialize LinkedIn autumn series", error);
+    });
+  }, [ensureAutumnSeries, user?.id]);
 
   async function handleSignOut() {
     await signOut();
