@@ -68,8 +68,8 @@ function validateMediaUrl(value: string): URL {
 export async function handleCoreosLinkedInPublish(request: Request): Promise<Response> {
   if (request.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405);
 
-  const expectedSecret = process.env["COREOS_CRON_SECRET"]?.trim() ?? "";
-  const suppliedSecret = request.headers.get("x-coreos-cron-secret")?.trim() ?? "";
+  const expectedSecret = process.env["FILM_STUDIO_PUBLISH_SECRET"]?.trim() ?? "";
+  const suppliedSecret = request.headers.get("x-film-studio-publish-secret")?.trim() ?? "";
   if (!(await secretsMatch(expectedSecret, suppliedSecret))) {
     return json({ error: "UNAUTHORIZED" }, 401);
   }
