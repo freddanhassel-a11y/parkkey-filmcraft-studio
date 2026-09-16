@@ -49,11 +49,13 @@ function firstSecretKeyFromJson(value: string | undefined): string | undefined {
 }
 
 function getSupabaseAdminKey(): string | undefined {
-  // Elevated access is server-only and uses Supabase's current secret-key format.
-  // Legacy service-role fallback is intentionally not supported.
+  // Elevated access is server-only. Prefer Supabase's current secret-key format,
+  // but allow the legacy service-role JWT for trusted scheduled Worker jobs.
+  // Neither value may ever be exposed to VITE_* or client bundles.
   return (
     process.env["SUPABASE_SECRET_KEY"]?.trim() ||
     firstSecretKeyFromJson(process.env["SUPABASE_SECRET_KEYS"]) ||
+    process.env["SUPABASE_SERVICE_ROLE_KEY"]?.trim() ||
     undefined
   );
 }
@@ -65,9 +67,11 @@ function createSupabaseAdminClient() {
   if (!SUPABASE_URL || !SUPABASE_ADMIN_KEY) {
     const missing = [
       ...(!SUPABASE_URL ? ["SUPABASE_URL"] : []),
-      ...(!SUPABASE_ADMIN_KEY ? ["SUPABASE_SECRET_KEY / SUPABASE_SECRET_KEYS"] : []),
+      ...(!SUPABASE_ADMIN_KEY
+        ? ["SUPABASE_SECRET_KEY / SUPABASE_SECRET_KEYS / SUPABASE_SERVICE_ROLE_KEY"]
+        : []),
     ];
-    const message = `Missing Supabase server environment variable(s): ${missing.join(", ")}. Ensure the server runtime exposes a Supabase secret key.`;
+    const message = `Missing Supabase server environment variable(s): ${missing.join(", ")}. Ensure the server runtime exposes a Supabase admin key.`;
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
   }
